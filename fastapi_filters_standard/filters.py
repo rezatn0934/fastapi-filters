@@ -72,29 +72,43 @@ alias_generator_config: ConfigVar[FilterAliasGenerator] = ConfigVar(
 
 def _is_csv_list_type(tp: Any) -> bool:
     """Check if type is CSVList (Annotated[list[T], ...])."""
-    # Unwrap Annotated to get the actual type
-    while get_origin(tp) is Annotated:
+    # CSVList is Annotated[list[T], ...], so we need to unwrap Annotated
+    origin = get_origin(tp)
+    
+    # If it's Annotated, get the first argument (the actual type)
+    if origin is Annotated:
         args = get_args(tp)
         if args:
-            tp = args[0]
-        else:
-            break
+            inner_type = args[0]
+            # Check if inner type is list
+            inner_origin = get_origin(inner_type)
+            if inner_origin is list:
+                return True
+            if inner_type is list:
+                return True
     
-    # Check if it's a list type
-    origin = get_origin(tp)
+    # Check if it's directly a list type
     if origin is list:
         return True
-    
-    # Also check if it's directly a list
     if tp is list:
         return True
     
     return False
 
 
-def _create_query_param(alias: str | None, tp: Any, in_: FilterPlace) -> Any:
+def _create_query_param(alias: str | None, tp: Any, op: AbstractFilterOperator, field: FilterField[Any], original_tp: type[Any], in_: FilterPlace) -> Any:
     """Create Query parameter with explode=False for CSVList types."""
-    if _is_csv_list_type(tp):
+    # Check if this operation needs CSVList:
+    # 1. in_ and not_in operations always use CSVList
+    # 2. Sequence types (list, tuple, etc.) use CSVList
+    # 3. If type is already CSVList
+    needs_csv = (
+        op in {FilterOperator.in_, FilterOperator.not_in}
+        or is_seq(original_tp)
+        or _is_csv_list_type(tp)
+    )
+    
+    if needs_csv:
         if alias:
             return in_(alias=alias, explode=False)
         return in_(explode=False)
@@ -226,7 +240,10 @@ def create_filters(
         [
             (
                 fname,
-                Annotated[adapt_type(field, tp, op), _create_query_param(alias, adapt_type(field, tp, op), in_)],
+                Annotated[
+                    adapt_type(field, tp, op),
+                    _create_query_param(alias, adapt_type(field, tp, op), op, field, tp, in_),
+                ],
                 None,
             )
             for _, fname, field, tp, alias, op in fields_defs

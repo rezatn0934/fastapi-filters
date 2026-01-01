@@ -1,3 +1,4 @@
+from .docs import fix_docs
 from .fields import FilterField
 from .filter_set import FilterSet, create_filters_from_set
 from .filters import create_filters, create_filters_from_model
@@ -18,4 +19,5 @@ __all__ = [
     "create_filters_from_set",
     "create_sorting",
     "create_sorting_from_model",
+    "fix_docs",
 ]
