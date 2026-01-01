@@ -1,26 +1,30 @@
 [project]
-name = "fastapi-filters"
-version = "0.3.1"
-description = "fastapi-filters"
+name = "fastapi-filters-standard"
+version = "0.1.1"
+description = "FastAPI filters with standard query parameter syntax (comma-separated values)"
 authors = [
-    {"name" = "Yurii Karabas", "email" = "1998uriyyo@gmail.com"},
+    {"name" = "Reza Teymouri Nejad", "email" = "rezatn0934@gmail.com"},
 ]
 requires-python = ">=3.10"
 readme = "README.md"
-license = "MIT"
-repository = "https://github.com/uriyyo/fastapi-filters"
-packages = [{ include = "fastapi_filters" }]
+license = {text = "MIT"}
+repository = "https://github.com/rezatn0934/fastapi-filters"
+keywords = ["fastapi", "filters", "sorting", "query-parameters", "rest-api"]
 classifiers = [
+    'Development Status :: 4 - Beta',
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: MIT License',
     'Operating System :: OS Independent',
-    'Programming Language :: Python',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
     'Programming Language :: Python :: 3.13',
-    'Programming Language :: Python :: 3.14',
     'Programming Language :: Python :: 3 :: Only',
+    'Topic :: Internet :: WWW/HTTP :: HTTP Servers',
+    'Topic :: Software Development :: Libraries :: Python Modules',
 ]
+packages = [{ include = "fastapi_filters_standard" }]
 dependencies = [
     "fastapi>=0.100.0",
     "pydantic>=2.0.0",
