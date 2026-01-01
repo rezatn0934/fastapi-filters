@@ -8,14 +8,14 @@ from faker import Faker
 from fastapi import Depends, FastAPI
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from fastapi_filters import (
+from fastapi_filters_standard import (
     FilterField,
     FilterSet,
     SortingValues,
     create_filters_from_set,
     create_sorting,
 )
-from fastapi_filters.ext.beanie import apply_filters_and_sorting
+from fastapi_filters_standard.ext.beanie import apply_filters_and_sorting
 
 faker = Faker()
 

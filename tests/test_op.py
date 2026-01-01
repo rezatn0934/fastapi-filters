@@ -1,7 +1,7 @@
 import pytest
 
-from fastapi_filters import FilterField, FilterOperator
-from fastapi_filters.op import FilterOp
+from fastapi_filters_standard import FilterField, FilterOperator
+from fastapi_filters_standard.op import FilterOp
 
 _field_int_a = FilterField(
     name="a",

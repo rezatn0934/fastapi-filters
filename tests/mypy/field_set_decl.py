@@ -1,6 +1,6 @@
 from typing_extensions import reveal_type
 
-from fastapi_filters import FilterField, FilterSet
+from fastapi_filters_standard import FilterField, FilterSet
 
 
 class MyFilterSet(FilterSet):
@@ -24,10 +24,10 @@ reveal_type(filter_set.d)
 
 # output:
 """
-tests/mypy/field_set_decl.py:13:13: note: Revealed type is "fastapi_filters.fields.FilterField[builtins.int]"
-tests/mypy/field_set_decl.py:14:13: note: Revealed type is "fastapi_filters.fields.FilterField[builtins.float]"
-tests/mypy/field_set_decl.py:15:13: note: Revealed type is "fastapi_filters.fields.FilterField[builtins.str]"
-tests/mypy/field_set_decl.py:16:13: note: Revealed type is "fastapi_filters.fields.FilterField[builtins.bool]"
+tests/mypy/field_set_decl.py:13:13: note: Revealed type is "fastapi_filters_standard.fields.FilterField[builtins.int]"
+tests/mypy/field_set_decl.py:14:13: note: Revealed type is "fastapi_filters_standard.fields.FilterField[builtins.float]"
+tests/mypy/field_set_decl.py:15:13: note: Revealed type is "fastapi_filters_standard.fields.FilterField[builtins.str]"
+tests/mypy/field_set_decl.py:16:13: note: Revealed type is "fastapi_filters_standard.fields.FilterField[builtins.bool]"
 tests/mypy/field_set_decl.py:20:13: note: Revealed type is "builtins.dict[enum.Enum, builtins.int | typing.Sequence[builtins.int] | builtins.bool]"
 tests/mypy/field_set_decl.py:21:13: note: Revealed type is "builtins.dict[enum.Enum, builtins.float | typing.Sequence[builtins.float] | builtins.bool]"
 tests/mypy/field_set_decl.py:22:13: note: Revealed type is "builtins.dict[enum.Enum, builtins.str | typing.Sequence[builtins.str] | builtins.bool]"

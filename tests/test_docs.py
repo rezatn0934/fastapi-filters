@@ -3,8 +3,8 @@ from typing import Annotated
 import pytest
 from fastapi import Query
 
-from fastapi_filters.docs import fix_docs
-from fastapi_filters.schemas import CSVList
+from fastapi_filters_standard.docs import fix_docs
+from fastapi_filters_standard.schemas import CSVList
 
 
 @pytest.fixture

@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from pytest_asyncio import fixture as async_fixture
 
-import fastapi_filters.configs  # noqa: F401
+import fastapi_filters_standard.configs  # noqa: F401
 
 
 @pytest.fixture

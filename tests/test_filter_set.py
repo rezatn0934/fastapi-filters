@@ -4,14 +4,14 @@ from typing import Any
 import pytest
 from fastapi import Depends, status
 
-from fastapi_filters import (
+from fastapi_filters_standard import (
     FilterField,
     FilterOperator,
     FilterSet,
     create_filters,
     create_filters_from_set,
 )
-from fastapi_filters.utils import unwrap_annotated
+from fastapi_filters_standard.utils import unwrap_annotated
 
 
 @dataclass

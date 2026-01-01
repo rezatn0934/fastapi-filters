@@ -5,15 +5,15 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, select, tr
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import declarative_base, relationship
 
-from fastapi_filters import FilterField, FilterSet
-from fastapi_filters.ext.sqlalchemy import (
+from fastapi_filters_standard import FilterField, FilterSet
+from fastapi_filters_standard.ext.sqlalchemy import (
     apply_filters,
     apply_filters_and_sorting,
     apply_sorting,
     create_filters_from_orm,
     create_sorting_from_orm,
 )
-from fastapi_filters.operators import FilterOperator
+from fastapi_filters_standard.operators import FilterOperator
 
 Base = declarative_base()
 

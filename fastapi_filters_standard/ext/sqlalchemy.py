@@ -20,12 +20,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import ColumnProperty
 from sqlalchemy.sql.selectable import Select
 
-from fastapi_filters import FilterField, create_filters
-from fastapi_filters.config import ConfigVar
-from fastapi_filters.filter_set import FilterSet
-from fastapi_filters.operators import FilterOperator
-from fastapi_filters.sorters import create_sorting
-from fastapi_filters.types import (
+from fastapi_filters_standard import FilterField, create_filters
+from fastapi_filters_standard.config import ConfigVar
+from fastapi_filters_standard.filter_set import FilterSet
+from fastapi_filters_standard.operators import FilterOperator
+from fastapi_filters_standard.sorters import create_sorting
+from fastapi_filters_standard.types import (
     AbstractFilterOperator,
     FilterAliasGenerator,
     FilterFieldDef,
@@ -37,7 +37,7 @@ from fastapi_filters.types import (
     SortingResolver,
     SortingValues,
 )
-from fastapi_filters.utils import fields_include_exclude
+from fastapi_filters_standard.utils import fields_include_exclude
 
 TSelectable = TypeVar("TSelectable", bound=Select[Any])
 

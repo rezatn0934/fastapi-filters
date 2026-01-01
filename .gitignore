@@ -135,3 +135,6 @@ dmypy.json
 
 # IDEA
 .idea/
+.pypirc
+
+*.lock

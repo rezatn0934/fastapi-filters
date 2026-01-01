@@ -3,7 +3,7 @@ from dirty_equals import IsPartialDict
 from fastapi import Query, status
 from pydantic import ValidationError
 
-from fastapi_filters.schemas import CSVList
+from fastapi_filters_standard.schemas import CSVList
 
 from .utils import parse_obj_as
 

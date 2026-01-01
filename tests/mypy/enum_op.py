@@ -3,7 +3,7 @@ from typing import TypeAlias
 
 from typing_extensions import reveal_type
 
-from fastapi_filters import FilterField
+from fastapi_filters_standard import FilterField
 
 
 class MyEnum(str, Enum):
@@ -57,24 +57,24 @@ reveal_type(field.not_contains(val))
 
 # output:
 """
-tests/mypy/enum_op.py:21:13: note: Revealed type is "fastapi_filters.op.FilterOp[enum.Enum]"
-tests/mypy/enum_op.py:22:13: note: Revealed type is "fastapi_filters.op.FilterOp[enum.Enum]"
+tests/mypy/enum_op.py:21:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[enum.Enum]"
+tests/mypy/enum_op.py:22:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[enum.Enum]"
 tests/mypy/enum_op.py:23:13: note: Revealed type is "None"
 tests/mypy/enum_op.py:24:13: note: Revealed type is "None"
 tests/mypy/enum_op.py:25:13: note: Revealed type is "None"
 tests/mypy/enum_op.py:26:13: note: Revealed type is "None"
-tests/mypy/enum_op.py:29:13: note: Revealed type is "fastapi_filters.op.FilterOp[enum.Enum]"
-tests/mypy/enum_op.py:30:13: note: Revealed type is "fastapi_filters.op.FilterOp[enum.Enum]"
+tests/mypy/enum_op.py:29:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[enum.Enum]"
+tests/mypy/enum_op.py:30:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[enum.Enum]"
 tests/mypy/enum_op.py:31:13: note: Revealed type is "None"
 tests/mypy/enum_op.py:32:13: note: Revealed type is "None"
 tests/mypy/enum_op.py:33:13: note: Revealed type is "None"
 tests/mypy/enum_op.py:34:13: note: Revealed type is "None"
-tests/mypy/enum_op.py:37:13: note: Revealed type is "fastapi_filters.op.FilterOp[typing.Sequence[enum.Enum]]"
-tests/mypy/enum_op.py:38:13: note: Revealed type is "fastapi_filters.op.FilterOp[typing.Sequence[enum.Enum]]"
-tests/mypy/enum_op.py:39:13: note: Revealed type is "fastapi_filters.op.FilterOp[typing.Sequence[enum.Enum]]"
-tests/mypy/enum_op.py:42:13: note: Revealed type is "fastapi_filters.op.FilterOp[builtins.bool]"
-tests/mypy/enum_op.py:43:13: note: Revealed type is "fastapi_filters.op.FilterOp[builtins.bool]"
-tests/mypy/enum_op.py:44:13: note: Revealed type is "fastapi_filters.op.FilterOp[builtins.bool]"
+tests/mypy/enum_op.py:37:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[typing.Sequence[enum.Enum]]"
+tests/mypy/enum_op.py:38:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[typing.Sequence[enum.Enum]]"
+tests/mypy/enum_op.py:39:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[typing.Sequence[enum.Enum]]"
+tests/mypy/enum_op.py:42:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[builtins.bool]"
+tests/mypy/enum_op.py:43:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[builtins.bool]"
+tests/mypy/enum_op.py:44:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[builtins.bool]"
 tests/mypy/enum_op.py:47:13: note: Revealed type is "Any"
 tests/mypy/enum_op.py:48:13: note: Revealed type is "Any"
 tests/mypy/enum_op.py:49:13: note: Revealed type is "Any"

@@ -10,14 +10,14 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, MappedAsDataclass, mapped_column
 
-from fastapi_filters import (
+from fastapi_filters_standard import (
     FilterField,
     FilterSet,
     SortingValues,
     create_filters_from_set,
     create_sorting,
 )
-from fastapi_filters.ext.sqlalchemy import apply_filters_and_sorting
+from fastapi_filters_standard.ext.sqlalchemy import apply_filters_and_sorting
 
 faker = Faker()
 engine = create_async_engine(

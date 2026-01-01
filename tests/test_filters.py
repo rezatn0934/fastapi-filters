@@ -4,7 +4,7 @@ import pytest
 from fastapi import Depends, status
 from pydantic import BaseModel, BeforeValidator
 
-from fastapi_filters import (
+from fastapi_filters_standard import (
     FilterField,
     FilterOperator,
     FilterValues,

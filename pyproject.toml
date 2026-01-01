@@ -1,6 +1,6 @@
 [project]
 name = "fastapi-filters-standard"
-version = "0.1.1"
+version = "0.2.1"
 description = "FastAPI filters with standard query parameter syntax (comma-separated values)"
 authors = [
     {"name" = "Reza Teymouri Nejad", "email" = "rezatn0934@gmail.com"},
@@ -156,10 +156,10 @@ show_column_numbers = true
 show_error_codes = true
 
 [tool.coverage.paths]
-source = ["fastapi_filters"]
+source = ["fastapi_filters_standard"]
 
 [tool.coverage.run]
-source = ["fastapi_filters"]
+source = ["fastapi_filters_standard"]
 
 [tool.coverage.report]
 exclude_lines = [

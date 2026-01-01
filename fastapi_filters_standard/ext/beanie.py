@@ -8,8 +8,8 @@ from beanie.odm.operators.find.evaluation import RegEx
 from beanie.odm.operators.find.logical import Not
 from beanie.odm.queries.find import FindMany
 
-from fastapi_filters import FilterOperator, FilterSet, FilterValues
-from fastapi_filters.types import AbstractFilterOperator, SortingValues
+from fastapi_filters_standard import FilterOperator, FilterSet, FilterValues
+from fastapi_filters_standard.types import AbstractFilterOperator, SortingValues
 
 DEFAULT_FILTERS: Mapping[AbstractFilterOperator, Callable[..., BaseFindOperator]] = {
     FilterOperator.eq: Eq,

@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta
 
 import pytest
 
-from fastapi_filters.operators import (
+from fastapi_filters_standard.operators import (
     DEFAULT_OPERATORS,
     NUM_OPERATORS,
     SEQ_OPERATORS,

@@ -3,8 +3,8 @@ from typing import Any, TypeVar, cast
 
 from tortoise.queryset import QuerySet
 
-from fastapi_filters import FilterOperator, FilterSet, FilterValues
-from fastapi_filters.types import AbstractFilterOperator, SortingValues
+from fastapi_filters_standard import FilterOperator, FilterSet, FilterValues
+from fastapi_filters_standard.types import AbstractFilterOperator, SortingValues
 
 TStmt = TypeVar("TStmt", bound=QuerySet[Any])
 

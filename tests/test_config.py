@@ -1,7 +1,7 @@
 import pytest
 from fastapi import Depends, status
 
-from fastapi_filters.config import ConfigVar
+from fastapi_filters_standard.config import ConfigVar
 
 
 def test_config_var():

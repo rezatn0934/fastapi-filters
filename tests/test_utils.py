@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Sequence
 import pytest
 from fastapi import Depends
 
-from fastapi_filters.utils import (
+from fastapi_filters_standard.utils import (
     async_safe,
     is_optional,
     is_seq,

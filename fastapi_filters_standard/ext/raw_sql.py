@@ -9,9 +9,9 @@ from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.compiler import StrSQLCompiler
 from sqlalchemy.sql.type_api import TypeEngine
 
-from fastapi_filters import FilterSet, FilterValues
-from fastapi_filters.config import ConfigVar
-from fastapi_filters.types import SortingValues
+from fastapi_filters_standard import FilterSet, FilterValues
+from fastapi_filters_standard.config import ConfigVar
+from fastapi_filters_standard.types import SortingValues
 
 from .sqlalchemy import DEFAULT_FILTERS, SORT_FUNCS, SORT_NULLS_FUNCS
 

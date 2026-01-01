@@ -2,7 +2,7 @@ from typing import TypeAlias
 
 from typing_extensions import reveal_type
 
-from fastapi_filters import FilterField
+from fastapi_filters_standard import FilterField
 
 _T: TypeAlias = list[int]
 val: _T = [1]
@@ -64,16 +64,16 @@ tests/mypy/arr_op.py:26:13: note: Revealed type is "None"
 tests/mypy/arr_op.py:29:13: note: Revealed type is "None"
 tests/mypy/arr_op.py:30:13: note: Revealed type is "None"
 tests/mypy/arr_op.py:31:13: note: Revealed type is "None"
-tests/mypy/arr_op.py:34:13: note: Revealed type is "fastapi_filters.op.FilterOp[builtins.bool]"
-tests/mypy/arr_op.py:35:13: note: Revealed type is "fastapi_filters.op.FilterOp[builtins.bool]"
-tests/mypy/arr_op.py:36:13: note: Revealed type is "fastapi_filters.op.FilterOp[builtins.bool]"
+tests/mypy/arr_op.py:34:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[builtins.bool]"
+tests/mypy/arr_op.py:35:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[builtins.bool]"
+tests/mypy/arr_op.py:36:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[builtins.bool]"
 tests/mypy/arr_op.py:39:13: note: Revealed type is "None"
 tests/mypy/arr_op.py:40:13: note: Revealed type is "None"
 tests/mypy/arr_op.py:41:13: note: Revealed type is "None"
 tests/mypy/arr_op.py:42:13: note: Revealed type is "None"
-tests/mypy/arr_op.py:45:13: note: Revealed type is "fastapi_filters.op.FilterOp[typing.Sequence[builtins.int]]"
-tests/mypy/arr_op.py:46:13: note: Revealed type is "fastapi_filters.op.FilterOp[typing.Sequence[builtins.int]]"
-tests/mypy/arr_op.py:47:13: note: Revealed type is "fastapi_filters.op.FilterOp[typing.Sequence[builtins.int]]"
-tests/mypy/arr_op.py:48:13: note: Revealed type is "fastapi_filters.op.FilterOp[typing.Sequence[builtins.int]]"
+tests/mypy/arr_op.py:45:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[typing.Sequence[builtins.int]]"
+tests/mypy/arr_op.py:46:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[typing.Sequence[builtins.int]]"
+tests/mypy/arr_op.py:47:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[typing.Sequence[builtins.int]]"
+tests/mypy/arr_op.py:48:13: note: Revealed type is "fastapi_filters_standard.op.FilterOp[typing.Sequence[builtins.int]]"
 Success: no issues found in 1 source file
 """
