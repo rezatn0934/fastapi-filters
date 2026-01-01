@@ -146,9 +146,9 @@ async def test_create_filters_from_set(app, client):
     response = await client.get(
         "/test",
         params={
-            "a__eq": "1",
+            "a": "1",
             "a__ne": "2",
-            "b__eq": "a",
+            "b": "a",
             "b__ne": "b",
         },
     )
@@ -176,9 +176,9 @@ async def test_filterset_in_decl(app, client):
     response = await client.get(
         "/test",
         params={
-            "a__eq": "1",
+            "a": "1",
             "a__ne": "2",
-            "b__eq": "a",
+            "b": "a",
             "b__ne": "b",
         },
     )
