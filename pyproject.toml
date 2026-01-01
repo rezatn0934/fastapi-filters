@@ -1,6 +1,6 @@
 [project]
 name = "fastapi-filters-standard"
-version = "0.2.1"
+version = "0.4.0"
 description = "FastAPI filters with standard query parameter syntax (comma-separated values)"
 authors = [
     {"name" = "Reza Teymouri Nejad", "email" = "rezatn0934@gmail.com"},

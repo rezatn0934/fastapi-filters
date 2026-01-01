@@ -3,7 +3,6 @@ from typing import Annotated
 import pytest
 from fastapi import Query
 
-from fastapi_filters_standard.docs import fix_docs
 from fastapi_filters_standard.schemas import CSVList
 
 
@@ -16,7 +15,7 @@ def app(app):
     ):
         return []
 
-    fix_docs(app)
+    # Auto-patch is enabled by default, no need to call fix_docs
     return app
 
 
