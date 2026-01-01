@@ -146,10 +146,10 @@ async def test_create_filters_from_set(app, client):
     response = await client.get(
         "/test",
         params={
-            "a[eq]": "1",
-            "a[ne]": "2",
-            "b[eq]": "a",
-            "b[ne]": "b",
+            "a__eq": "1",
+            "a__ne": "2",
+            "b__eq": "a",
+            "b__ne": "b",
         },
     )
     assert response.status_code == status.HTTP_200_OK
@@ -176,10 +176,10 @@ async def test_filterset_in_decl(app, client):
     response = await client.get(
         "/test",
         params={
-            "a[eq]": "1",
-            "a[ne]": "2",
-            "b[eq]": "a",
-            "b[ne]": "b",
+            "a__eq": "1",
+            "a__ne": "2",
+            "b__eq": "a",
+            "b__ne": "b",
         },
     )
     assert response.status_code == status.HTTP_200_OK
@@ -271,10 +271,10 @@ def test_op_types():
         "a": float,
         "a__eq": float,
         "a__ne": float,
-        "a__in_": list[int],
+        "a__in": list[int],
         "a__not_in": list[int],
         "a__gt": int,
-        "a__ge": int,
+        "a__gte": int,
         "a__lt": int,
-        "a__le": int,
+        "a__lte": int,
     }

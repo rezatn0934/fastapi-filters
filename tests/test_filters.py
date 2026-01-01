@@ -46,11 +46,42 @@ async def test_filters_as_dep(app, client):
         "d": {"eq": "123"},
     }
 
-    res = await client.get("/", params={"a[eq]": 1, "a[gt]": 2, "a[lt]": 3})
+    res = await client.get("/", params={"a": 1, "a__gt": 2, "a__lt": 3})
 
     assert res.status_code == status.HTTP_200_OK
     assert res.json() == {
         "a": {"eq": 1, "gt": 2, "lt": 3},
+    }
+
+
+@pytest.mark.asyncio
+async def test_filters_in_operator_with_comma_separated_values(app, client):
+    @app.get("/")
+    async def route(
+        filters: FilterValues = Depends(
+            create_filters(
+                main_industry=int,
+            ),
+        ),
+    ) -> FilterValues:
+        return filters
+
+    # Correct: comma-separated values in single parameter
+    res = await client.get("/", params={"main_industry__in": "1,2,3"})
+
+    assert res.status_code == status.HTTP_200_OK
+    assert res.json() == {
+        "main_industry": {"in": [1, 2, 3]},
+    }
+
+    # Test that repeated parameters are handled correctly
+    # FastAPI may receive multiple values as a list, validator should handle it
+    res = await client.get("/", params=[("main_industry__in", "1"), ("main_industry__in", "2"), ("main_industry__in", "3")])
+
+    # The validator should join multiple values and split them
+    assert res.status_code == status.HTTP_200_OK
+    assert res.json() == {
+        "main_industry": {"in": [1, 2, 3]},
     }
 
 
@@ -72,22 +103,22 @@ async def test_filters(app):
         "a__ne": ("a", FilterOperator.ne),
         "b": ("b", FilterOperator.eq),
         "b__eq": ("b", FilterOperator.eq),
-        "b__ge": ("b", FilterOperator.ge),
+        "b__gte": ("b", FilterOperator.ge),
         "b__gt": ("b", FilterOperator.gt),
-        "b__in_": ("b", FilterOperator.in_),
-        "b__le": ("b", FilterOperator.le),
+        "b__in": ("b", FilterOperator.in_),
+        "b__lte": ("b", FilterOperator.le),
         "b__lt": ("b", FilterOperator.lt),
         "b__ne": ("b", FilterOperator.ne),
         "b__not_in": ("b", FilterOperator.not_in),
         "c": ("c", FilterOperator.eq),
         "c__eq": ("c", FilterOperator.eq),
-        "c__in_": ("c", FilterOperator.in_),
-        "c__is_null": ("c", FilterOperator.is_null),
+        "c__in": ("c", FilterOperator.in_),
+        "c__isnull": ("c", FilterOperator.is_null),
         "c__ne": ("c", FilterOperator.ne),
         "c__not_in": ("c", FilterOperator.not_in),
-        "c__like": ("c", FilterOperator.like),
+        "c__contains": ("c", FilterOperator.like),
         "c__not_like": ("c", FilterOperator.not_like),
-        "c__ilike": ("c", FilterOperator.ilike),
+        "c__icontains": ("c", FilterOperator.ilike),
         "c__not_ilike": ("c", FilterOperator.not_ilike),
     }
 
@@ -102,10 +133,10 @@ async def test_filters_from_model(app):
     assert create_filters_from_model(UserModel).__defs__ == {
         "id": ("id", FilterOperator.eq),
         "id__eq": ("id", FilterOperator.eq),
-        "id__ge": ("id", FilterOperator.ge),
+        "id__gte": ("id", FilterOperator.ge),
         "id__gt": ("id", FilterOperator.gt),
-        "id__in_": ("id", FilterOperator.in_),
-        "id__le": ("id", FilterOperator.le),
+        "id__in": ("id", FilterOperator.in_),
+        "id__lte": ("id", FilterOperator.le),
         "id__lt": ("id", FilterOperator.lt),
         "id__ne": ("id", FilterOperator.ne),
         "id__not_in": ("id", FilterOperator.not_in),
@@ -114,23 +145,23 @@ async def test_filters_from_model(app):
         "is_active__ne": ("is_active", FilterOperator.ne),
         "name": ("name", FilterOperator.eq),
         "name__eq": ("name", FilterOperator.eq),
-        "name__in_": ("name", FilterOperator.in_),
+        "name__in": ("name", FilterOperator.in_),
         "name__ne": ("name", FilterOperator.ne),
         "name__not_in": ("name", FilterOperator.not_in),
-        "name__like": ("name", FilterOperator.like),
+        "name__contains": ("name", FilterOperator.like),
         "name__not_like": ("name", FilterOperator.not_like),
-        "name__ilike": ("name", FilterOperator.ilike),
+        "name__icontains": ("name", FilterOperator.ilike),
         "name__not_ilike": ("name", FilterOperator.not_ilike),
     }
     assert create_filters_from_model(UserModel, include={"name"}).__defs__ == {
         "name": ("name", FilterOperator.eq),
         "name__eq": ("name", FilterOperator.eq),
-        "name__in_": ("name", FilterOperator.in_),
+        "name__in": ("name", FilterOperator.in_),
         "name__ne": ("name", FilterOperator.ne),
         "name__not_in": ("name", FilterOperator.not_in),
-        "name__like": ("name", FilterOperator.like),
+        "name__contains": ("name", FilterOperator.like),
         "name__not_like": ("name", FilterOperator.not_like),
-        "name__ilike": ("name", FilterOperator.ilike),
+        "name__icontains": ("name", FilterOperator.ilike),
         "name__not_ilike": ("name", FilterOperator.not_ilike),
     }
     assert create_filters_from_model(UserModel, exclude={"id"}).__defs__ == {
@@ -139,11 +170,11 @@ async def test_filters_from_model(app):
         "is_active__ne": ("is_active", FilterOperator.ne),
         "name": ("name", FilterOperator.eq),
         "name__eq": ("name", FilterOperator.eq),
-        "name__in_": ("name", FilterOperator.in_),
+        "name__in": ("name", FilterOperator.in_),
         "name__ne": ("name", FilterOperator.ne),
         "name__not_in": ("name", FilterOperator.not_in),
-        "name__like": ("name", FilterOperator.like),
+        "name__contains": ("name", FilterOperator.like),
         "name__not_like": ("name", FilterOperator.not_like),
-        "name__ilike": ("name", FilterOperator.ilike),
+        "name__icontains": ("name", FilterOperator.ilike),
         "name__not_ilike": ("name", FilterOperator.not_ilike),
     }

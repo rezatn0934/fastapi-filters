@@ -25,6 +25,29 @@ async def test_filters_as_dep(app, client):
     assert res.json() == [["name", "asc", None], ["age", "desc", None]]
 
 
+@pytest.mark.asyncio
+async def test_sorting_with_comma_separated_values(app, client):
+    @app.get("/")
+    async def route(
+        sorting: SortingValues = Depends(create_sorting("name", "age", "created_at")),
+    ) -> SortingValues:
+        return sorting
+
+    # Correct: comma-separated values in single parameter
+    res = await client.get("/", params={"sort": "+name,-age,+created_at"})
+
+    assert res.status_code == status.HTTP_200_OK
+    assert res.json() == [["name", "asc", None], ["age", "desc", None], ["created_at", "asc", None]]
+
+    # Test that repeated parameters are handled correctly
+    # FastAPI may receive multiple values as a list, validator should handle it
+    res = await client.get("/", params=[("sort", "+name"), ("sort", "-age"), ("sort", "+created_at")])
+
+    # The validator should join multiple values and split them
+    assert res.status_code == status.HTTP_200_OK
+    assert res.json() == [["name", "asc", None], ["age", "desc", None], ["created_at", "asc", None]]
+
+
 def test_create_sorting():
     model = create_sorting("name", "age", "created_at")
 

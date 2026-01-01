@@ -14,6 +14,13 @@ def test_csv_list():
     assert parse_obj_as(CSVList[int], "1,2,3") == [1, 2, 3]
 
 
+def test_csv_list_with_multiple_values():
+    """Test that multiple values (from repeated query params) are handled correctly."""
+    # Simulate FastAPI receiving multiple values as a list
+    assert parse_obj_as(CSVList[int], ["1", "2", "3"]) == [1, 2, 3]
+    assert parse_obj_as(CSVList[str], ["a", "b", "c"]) == ["a", "b", "c"]
+
+
 def test_csv_list_errors():
     with pytest.raises(ValidationError) as exc:
         parse_obj_as(CSVList[int], "abc")
