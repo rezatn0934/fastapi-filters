@@ -48,7 +48,7 @@ def create_sorting(
         )
 
     async def _get_sorters(
-        sort: Annotated[CSVList[tp], in_(alias=alias)] = default,  # type: ignore[valid-type,assignment]
+        sort: Annotated[CSVList[tp], in_(alias=alias, explode=False)] = default,  # type: ignore[valid-type,assignment]
     ) -> SortingValues:
         return cast(SortingValues, [defs[f] for f in sort or ()])
 

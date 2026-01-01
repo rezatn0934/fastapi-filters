@@ -5,6 +5,8 @@ from typing import (
     Annotated,
     Any,
     cast,
+    get_args,
+    get_origin,
 )
 
 from fastapi import Depends, Query
@@ -23,7 +25,7 @@ from .types import (
     FiltersResolver,
     FilterValues,
 )
-from .utils import async_safe, fields_include_exclude, is_seq, unwrap_seq_type
+from .utils import async_safe, fields_include_exclude, is_seq, unwrap_annotated, unwrap_seq_type
 
 # Django-style lookup expressions mapping
 LOOKUP_EXPRESSIONS = {
@@ -66,6 +68,39 @@ alias_generator_config: ConfigVar[FilterAliasGenerator] = ConfigVar(
     "alias_generator",
     default=default_alias_generator,
 )
+
+
+def _is_csv_list_type(tp: Any) -> bool:
+    """Check if type is CSVList (Annotated[list[T], ...])."""
+    # Unwrap Annotated to get the actual type
+    while get_origin(tp) is Annotated:
+        args = get_args(tp)
+        if args:
+            tp = args[0]
+        else:
+            break
+    
+    # Check if it's a list type
+    origin = get_origin(tp)
+    if origin is list:
+        return True
+    
+    # Also check if it's directly a list
+    if tp is list:
+        return True
+    
+    return False
+
+
+def _create_query_param(alias: str | None, tp: Any, in_: FilterPlace) -> Any:
+    """Create Query parameter with explode=False for CSVList types."""
+    if _is_csv_list_type(tp):
+        if alias:
+            return in_(alias=alias, explode=False)
+        return in_(explode=False)
+    if alias:
+        return in_(alias=alias)
+    return in_
 
 
 def adapt_type(
@@ -191,7 +226,7 @@ def create_filters(
         [
             (
                 fname,
-                Annotated[adapt_type(field, tp, op), in_(alias=alias)],
+                Annotated[adapt_type(field, tp, op), _create_query_param(alias, adapt_type(field, tp, op), in_)],
                 None,
             )
             for _, fname, field, tp, alias, op in fields_defs
