@@ -25,6 +25,27 @@ from .types import (
 )
 from .utils import async_safe, fields_include_exclude, is_seq, unwrap_seq_type
 
+# Django-style lookup expressions mapping
+LOOKUP_EXPRESSIONS = {
+    FilterOperator.eq: "",  # exact - no suffix
+    FilterOperator.ne: "__ne",  # not equal
+    FilterOperator.gt: "__gt",
+    FilterOperator.ge: "__gte",
+    FilterOperator.lt: "__lt",
+    FilterOperator.le: "__lte",
+    FilterOperator.like: "__contains",  # like -> contains
+    FilterOperator.not_like: "__not_like",
+    FilterOperator.ilike: "__icontains",  # ilike -> icontains
+    FilterOperator.not_ilike: "__not_ilike",
+    FilterOperator.in_: "__in",
+    FilterOperator.not_in: "__not_in",
+    FilterOperator.is_null: "__isnull",
+    FilterOperator.overlap: "__overlap",
+    FilterOperator.not_overlap: "__not_overlap",
+    FilterOperator.contains: "__contains",
+    FilterOperator.not_contains: "__not_contains",
+}
+
 
 def default_alias_generator(
     name: str,
@@ -32,7 +53,13 @@ def default_alias_generator(
     alias: str | None = None,
 ) -> str:
     name = alias or name
-    return f"{name}[{op.name.rstrip('_')}]"
+    lookup_expr = LOOKUP_EXPRESSIONS.get(op, f"__{op.name.rstrip('_')}")
+
+    # If lookup_expr is empty (exact match), return just the name
+    if not lookup_expr:
+        return name
+
+    return f"{name}{lookup_expr}"
 
 
 alias_generator_config: ConfigVar[FilterAliasGenerator] = ConfigVar(
@@ -69,6 +96,21 @@ def adapt_type(
     return tp
 
 
+def _get_field_name(name: str, op: AbstractFilterOperator) -> str:
+    """Get field name for dataclass field, ensuring uniqueness."""
+    lookup_expr = LOOKUP_EXPRESSIONS.get(op, f"__{op.name.rstrip('_')}")
+
+    # If lookup_expr is empty (exact match), use __{op.name} for uniqueness
+    if not lookup_expr:
+        return f"{name}__{op.name}"
+
+    # Remove leading __ from lookup_expr and add it to name
+    if lookup_expr.startswith("__"):
+        return f"{name}{lookup_expr}"
+
+    return f"{name}__{lookup_expr}"
+
+
 def field_filter_to_raw_fields(
     name: str,
     field: FilterField[Any],
@@ -81,7 +123,7 @@ def field_filter_to_raw_fields(
 
     for op in field.operators or ():
         yield (
-            f"{name}__{op.name}",
+            _get_field_name(name, op),
             field.type,
             op,
             alias_generator(
