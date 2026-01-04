@@ -9,7 +9,7 @@ from typing import (
     get_origin,
 )
 
-from fastapi import Depends, Query
+from fastapi import Depends, Query, Request
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 
@@ -190,6 +190,7 @@ def create_filters_from_model(
     alias_generator: FilterAliasGenerator | None = None,
     include: Container[str] | None = None,
     exclude: Container[str] | None = None,
+    raw_mode: bool = False,
     **overrides: FilterFieldDef,
 ) -> FiltersResolver:
     checker = fields_include_exclude(model.model_fields, include, exclude)
@@ -203,6 +204,7 @@ def create_filters_from_model(
     return create_filters(
         in_=in_,
         alias_generator=alias_generator,
+        raw_mode=raw_mode,
         **{
             **{name: _get_type(field) for name, field in model.model_fields.items() if checker(name)},
             **(overrides or {}),
@@ -214,6 +216,7 @@ def create_filters(
     *,
     in_: FilterPlace | None = None,
     alias_generator: FilterAliasGenerator | None = None,
+    raw_mode: bool = False,
     **kwargs: FilterFieldDef,
 ) -> FiltersResolver:
     if in_ is None:
@@ -234,6 +237,14 @@ def create_filters(
     ]
 
     defs = {fname: (name, op) for name, fname, *_, op in fields_defs}
+    
+    # Build set of all aliases for raw mode
+    all_filter_keys: set[str] = set()
+    for _, fname, _, _, alias, _ in fields_defs:
+        if alias:
+            all_filter_keys.add(alias)
+        # Also include field name
+        all_filter_keys.add(fname)
 
     filter_model = make_dataclass(
         "Filters",
@@ -250,15 +261,29 @@ def create_filters(
         ],
     )
 
-    async def _get_filters(f: Any = Depends(async_safe(filter_model))) -> FilterValues:
-        values: FilterValues = defaultdict(dict)
+    if raw_mode:
+        async def _get_filters(request: Request) -> dict[str, Any]:
+            """Return raw query parameters without conversion."""
+            # Get all query parameters that match our filter aliases
+            raw_params: dict[str, Any] = {}
+            query_params = dict(request.query_params)
+            
+            # Filter query params to only include our filter parameters
+            for key, value in query_params.items():
+                if key in all_filter_keys:
+                    raw_params[key] = value
+            
+            return raw_params
+    else:
+        async def _get_filters(f: Any = Depends(async_safe(filter_model))) -> FilterValues:
+            values: FilterValues = defaultdict(dict)
 
-        for key, value in asdict(f).items():
-            if value is not None:
-                name, op = defs[key]
-                values[name][op] = value
+            for key, value in asdict(f).items():
+                if value is not None:
+                    name, op = defs[key]
+                    values[name][op] = value
 
-        return {**values}
+            return {**values}
 
     _get_filters.__model__ = filter_model  # type: ignore[attr-defined]
     _get_filters.__defs__ = defs  # type: ignore[attr-defined]
