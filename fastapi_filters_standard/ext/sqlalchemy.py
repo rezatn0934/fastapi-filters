@@ -41,7 +41,7 @@ TSelectable = TypeVar("TSelectable", bound=Select[Any])
 # --------------------------------------------
 # Helper for nested fields
 # --------------------------------------------
-def resolve_nested_column(model, field: str):
+def resolve_nested_column(model: type[Any], field: str):
     """
     Resolve 'state__fa_name' into (joins, column)
 
@@ -51,7 +51,7 @@ def resolve_nested_column(model, field: str):
     """
     parts = field.split("__")
     current = model
-    joins = []
+    joins: list[InstrumentedAttribute] = []
 
     for part in parts[:-1]:
         attr = getattr(current, part, None)
@@ -105,7 +105,11 @@ DEFAULT_FILTERS: Mapping[AbstractFilterOperator, Callable[[Any, Any], Any]] = {
 SORT_FUNCS: Mapping[
     SortingDirection,
     Callable[[ColumnExpressionArgument[Any]], ColumnExpressionArgument[Any]],
-] = {"asc": asc, "desc": desc}
+] = {
+    "asc": asc,
+    "desc": desc,
+}
+
 
 SORT_NULLS_FUNCS: Mapping[
     tuple[SortingDirection, SortingNulls],
@@ -125,7 +129,8 @@ AdditionalNamespace: TypeAlias = Mapping[str | FilterField[Any], Any]
 # Entity namespace helpers
 # --------------------------------------------
 def _get_entity_namespace(stmt: TSelectable) -> EntityNamespace:
-    ns = {}
+    ns: dict[str, Any] = {}
+
     for entity in reversed(stmt.get_final_froms()):
         for name, clause in reversed(entity.c.items()):
             ns[name] = clause
@@ -140,7 +145,8 @@ def _get_entity_namespace(stmt: TSelectable) -> EntityNamespace:
 
 
 def _normalize_additional_namespace(additional: AdditionalNamespace) -> EntityNamespace:
-    ns = {}
+    ns: dict[str, Any] = {}
+
     for key, value in additional.items():
         k = key.name if isinstance(key, FilterField) else key
         assert k, "Additional namespace key cannot be empty"
@@ -156,14 +162,28 @@ ApplyFilterFunc: TypeAlias = Callable[
     [TSelectable, EntityNamespace, str, AbstractFilterOperator, Any],
     TSelectable,
 ]
+
 AddFilterConditionFunc: TypeAlias = Callable[[TSelectable, str, Any], TSelectable]
 
-custom_apply_filter: ConfigVar[ApplyFilterFunc[Any]] = ConfigVar("apply_filter", default=_default_hook)
-custom_add_condition: ConfigVar[AddFilterConditionFunc[Any]] = ConfigVar("add_condition", default=_default_hook)
+
+custom_apply_filter: ConfigVar[ApplyFilterFunc[Any]] = ConfigVar(
+    "apply_filter",
+    default=_default_hook,
+)
+
+custom_add_condition: ConfigVar[AddFilterConditionFunc[Any]] = ConfigVar(
+    "add_condition",
+    default=_default_hook,
+)
 
 
 def generic_condition(left: Any, right: Any, op: AbstractFilterOperator) -> Any:
-    return DEFAULT_FILTERS[op](left, right)
+    try:
+        func = DEFAULT_FILTERS[op]
+    except KeyError:
+        raise NotImplementedError(f"Operator {op} is not implemented")
+
+    return func(left, right)
 
 
 # --------------------------------------------
@@ -177,7 +197,9 @@ def _apply_filter(
     val: Any,
     apply_filter: ApplyFilterFunc[TSelectable] | None = None,
     add_condition: AddFilterConditionFunc[TSelectable] | None = None,
-    model: type[Any] | None = None,  # ← اضافه شد
+    *,
+    model: type[Any] | None = None,
+    nested: bool = False,
 ) -> TSelectable:
     custom_apply_filter_impl = custom_apply_filter.get()
 
@@ -194,12 +216,12 @@ def _apply_filter(
             cond = custom_apply_filter_impl(stmt, ns, field, op, val)
             assert cond is not None
     except (NotImplementedError, AssertionError):
-        # --------------------------------------------
-        # Handle nested fields with __
-        # --------------------------------------------
-        if "__" in field:
+        if nested and "__" in field:
             if model is None:
-                raise RuntimeError("Nested filter requires model parameter")
+                raise RuntimeError(
+                    "Nested filters require passing `model=` when nested=True"
+                )
+
             joins, column = resolve_nested_column(model, field)
             for rel in joins:
                 stmt = stmt.join(rel)
@@ -237,7 +259,8 @@ def apply_filters(
     stmt: TSelectable,
     filters: FilterValues | FilterSet,
     *,
-    model: type[Any] | None = None,  # ← اضافه شد
+    model: type[Any] | None = None,
+    nested: bool = False,
     remapping: Mapping[str, str] | None = None,
     additional: AdditionalNamespace | None = None,
     apply_filter: ApplyFilterFunc[TSelectable] | None = None,
@@ -245,13 +268,6 @@ def apply_filters(
 ) -> TSelectable:
     if isinstance(filters, FilterSet):
         filters = filters.filter_values
-
-    if model is None:
-        # fallback: اگر کاربر model نداد، تلاش کنیم stmt را اینسپکت کنیم
-        try:
-            model = stmt._raw_columns[0].entity
-        except AttributeError:
-            raise RuntimeError("For nested filters you must pass the ORM model via `model=`")
 
     remapping = remapping or {}
     ns = {
@@ -261,8 +277,19 @@ def apply_filters(
 
     for field, field_filters in filters.items():
         field = remapping.get(field, field)
+
         for op, val in field_filters.items():
-            stmt = _apply_filter(stmt, ns, field, op, val, apply_filter, add_condition, model=model)
+            stmt = _apply_filter(
+                stmt,
+                ns,
+                field,
+                op,
+                val,
+                apply_filter,
+                add_condition,
+                model=model,
+                nested=nested,
+            )
 
     return stmt
 
@@ -322,11 +349,18 @@ def apply_filters_and_sorting(
     )
 
 
+# --------------------------------------------
+# ORM helpers
+# --------------------------------------------
 def adapt_sqlalchemy_column_type(column: ColumnProperty[Any]) -> FilterFieldDef:
     expr: Any = column.expression
 
     type_: Any
-    type_ = list[expr.type.item_type.python_type] if isinstance(expr.type, ARRAY) else expr.type.python_type
+    type_ = (
+        list[expr.type.item_type.python_type]
+        if isinstance(expr.type, ARRAY)
+        else expr.type.python_type
+    )
 
     if expr.nullable:
         type_ = type_ | None
@@ -362,6 +396,57 @@ def _iter_over_orm_columns(
         yield name, column
 
 
+def _iter_over_orm_columns_nested(
+    obj: Any,
+    *,
+    prefix: str = "",
+    depth: int,
+    max_depth: int,
+    include_fk: bool,
+    include: Container[str] | None,
+    exclude: Container[str] | None,
+    remapping: Mapping[str, str] | None,
+    separator: str,
+):
+    """
+    Recursively iterate over ORM columns + relationships
+    """
+    mapper = obj.__mapper__
+
+    # --- columns ---
+    for name, column in _iter_over_orm_columns(
+        obj,
+        include_fk=include_fk,
+        include=include,
+        exclude=exclude,
+        remapping=remapping,
+    ):
+        full_name = f"{prefix}{name}" if not prefix else f"{prefix}{separator}{name}"
+        yield full_name, column
+
+    if depth >= max_depth:
+        return
+
+    for rel in mapper.relationships:
+        if not isinstance(rel, RelationshipProperty):
+            continue
+
+        target = rel.mapper.class_
+        rel_prefix = rel.key if not prefix else f"{prefix}{separator}{rel.key}"
+
+        yield from _iter_over_orm_columns_nested(
+            target,
+            prefix=rel_prefix,
+            depth=depth + 1,
+            max_depth=max_depth,
+            include_fk=include_fk,
+            include=None,
+            exclude=None,
+            remapping=None,
+            separator=separator,
+        )
+
+
 def create_filters_from_orm(
     obj: Any,
     *,
@@ -371,18 +456,36 @@ def create_filters_from_orm(
     include: Container[str] | None = None,
     exclude: Container[str] | None = None,
     remapping: Mapping[str, str] | None = None,
+    nested: bool = False,
+    nested_separator: str = "__",
+    max_depth: int = 1,
     **overrides: FilterFieldDef,
 ) -> FiltersResolver:
-    fields = {
-        name: adapt_sqlalchemy_column_type(column)
-        for name, column in _iter_over_orm_columns(
-            obj,
-            include_fk=include_fk,
-            include=include,
-            exclude=exclude,
-            remapping=remapping,
-        )
-    }
+    if nested:
+        fields = {
+            name: adapt_sqlalchemy_column_type(column)
+            for name, column in _iter_over_orm_columns_nested(
+                obj,
+                depth=0,
+                max_depth=max_depth,
+                include_fk=include_fk,
+                include=include,
+                exclude=exclude,
+                remapping=remapping,
+                separator=nested_separator,
+            )
+        }
+    else:
+        fields = {
+            name: adapt_sqlalchemy_column_type(column)
+            for name, column in _iter_over_orm_columns(
+                obj,
+                include_fk=include_fk,
+                include=include,
+                exclude=exclude,
+                remapping=remapping,
+            )
+        }
 
     return create_filters(
         in_=in_,
