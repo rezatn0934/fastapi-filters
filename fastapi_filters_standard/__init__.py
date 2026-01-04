@@ -4,7 +4,7 @@ from .filter_set import FilterSet, create_filters_from_set
 from .filters import create_filters, create_filters_from_model
 from .operators import FilterOperator
 from .sorters import create_sorting, create_sorting_from_model
-from .types import FiltersResolver, FilterValues, SortingResolver, SortingValues
+from .types import FiltersResolver, FilterValues, RawFilterValues, SortingResolver, SortingValues
 
 # Auto-patch FastAPI to fix explode parameter
 _auto_fix_docs()
@@ -14,6 +14,7 @@ __all__ = [
     "FilterOperator",
     "FilterSet",
     "FilterValues",
+    "RawFilterValues",
     "FiltersResolver",
     "SortingResolver",
     "SortingValues",
