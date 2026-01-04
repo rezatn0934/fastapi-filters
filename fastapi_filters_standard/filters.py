@@ -25,7 +25,7 @@ from .types import (
     FiltersResolver,
     FilterValues,
 )
-from .utils import async_safe, fields_include_exclude, is_seq, unwrap_annotated, unwrap_seq_type
+from .utils import async_safe, fields_include_exclude, flatten_model_fields, is_seq, unwrap_seq_type
 
 # Django-style lookup expressions mapping
 LOOKUP_EXPRESSIONS = {
@@ -74,7 +74,7 @@ def _is_csv_list_type(tp: Any) -> bool:
     """Check if type is CSVList (Annotated[list[T], ...])."""
     # CSVList is Annotated[list[T], ...], so we need to unwrap Annotated
     origin = get_origin(tp)
-    
+
     # If it's Annotated, get the first argument (the actual type)
     if origin is Annotated:
         args = get_args(tp)
@@ -86,28 +86,31 @@ def _is_csv_list_type(tp: Any) -> bool:
                 return True
             if inner_type is list:
                 return True
-    
+
     # Check if it's directly a list type
     if origin is list:
         return True
     if tp is list:
         return True
-    
+
     return False
 
 
-def _create_query_param(alias: str | None, tp: Any, op: AbstractFilterOperator, field: FilterField[Any], original_tp: type[Any], in_: FilterPlace) -> Any:
+def _create_query_param(
+    alias: str | None,
+    tp: Any,
+    op: AbstractFilterOperator,
+    field: FilterField[Any],
+    original_tp: type[Any],
+    in_: FilterPlace,
+) -> Any:
     """Create Query parameter with explode=False for CSVList types."""
     # Check if this operation needs CSVList:
     # 1. in_ and not_in operations always use CSVList
     # 2. Sequence types (list, tuple, etc.) use CSVList
     # 3. If type is already CSVList
-    needs_csv = (
-        op in {FilterOperator.in_, FilterOperator.not_in}
-        or is_seq(original_tp)
-        or _is_csv_list_type(tp)
-    )
-    
+    needs_csv = op in {FilterOperator.in_, FilterOperator.not_in} or is_seq(original_tp) or _is_csv_list_type(tp)
+
     if needs_csv:
         if alias:
             return in_(alias=alias, explode=False)
@@ -191,6 +194,9 @@ def create_filters_from_model(
     include: Container[str] | None = None,
     exclude: Container[str] | None = None,
     raw_mode: bool = False,
+    nested: bool = False,
+    nested_separator: str = "__",
+    max_depth: int = 1,
     **overrides: FilterFieldDef,
 ) -> FiltersResolver:
     checker = fields_include_exclude(model.model_fields, include, exclude)
@@ -201,12 +207,27 @@ def create_filters_from_model(
 
         return f.annotation
 
+    if nested:
+        # Flatten nested BaseModel fields into path-based names
+        flat_fields = flatten_model_fields(
+            model,
+            separator=nested_separator,
+            max_depth=max_depth,
+        )
+
+        fields: dict[str, Any] = {
+            name: tp for name, tp in flat_fields.items() if checker(name.split(nested_separator, 1)[0])
+        }
+    else:
+        # Original behavior (backward compatible)
+        fields = {name: _get_type(field) for name, field in model.model_fields.items() if checker(name)}
+
     return create_filters(
         in_=in_,
         alias_generator=alias_generator,
         raw_mode=raw_mode,
         **{
-            **{name: _get_type(field) for name, field in model.model_fields.items() if checker(name)},
+            **fields,
             **(overrides or {}),
         },
     )
@@ -237,7 +258,7 @@ def create_filters(
     ]
 
     defs = {fname: (name, op) for name, fname, *_, op in fields_defs}
-    
+
     # Build set of all aliases for raw mode
     all_filter_keys: set[str] = set()
     for _, fname, _, _, alias, _ in fields_defs:
@@ -262,19 +283,21 @@ def create_filters(
     )
 
     if raw_mode:
+
         async def _get_filters(request: Request) -> dict[str, Any]:
             """Return raw query parameters without conversion."""
             # Get all query parameters that match our filter aliases
             raw_params: dict[str, Any] = {}
             query_params = dict(request.query_params)
-            
+
             # Filter query params to only include our filter parameters
             for key, value in query_params.items():
                 if key in all_filter_keys:
                     raw_params[key] = value
-            
+
             return raw_params
     else:
+
         async def _get_filters(f: Any = Depends(async_safe(filter_model))) -> FilterValues:
             values: FilterValues = defaultdict(dict)
 
