@@ -17,12 +17,24 @@
 
 This fork introduces **standard query parameter syntax** for filters:
 
-* Multiple values can be passed as comma-separated list:
+* Field operations are now standardized:
+
+  ```
+  field__operation
+  ```
+
+  Instead of the old syntax:
+
+  ```
+  field[operation]
+  ```
+* Operations are standardized across the package, independent of SQLAlchemy naming.
+* For filters requiring lists, values are **comma-separated in a single parameter**:
 
   ```
   GET /places?main_industry=1,2,3
   ```
-* No need to use `[in]` or other operator suffixes in URL.
+* Optionally, **Raw Mode** can be used to receive filters exactly as sent in query parameters.
 
 ---
 
@@ -44,8 +56,7 @@ from typing import List
 from fastapi import FastAPI, Depends
 from pydantic import BaseModel, Field
 
-# import from the forked package
-from fastapi_filters__standard import create_filters, create_filters_from_model, FilterValues
+from fastapi_filters_standard import create_filters, create_filters_from_model, FilterValues, RawFilterValues
 
 app = FastAPI()
 
@@ -56,18 +67,28 @@ class UserOut(BaseModel):
     age: int = Field(..., example=102)
 
 
-@app.get("/users")
+# Manual filters
+@app.get("/users/manual")
 async def get_users_manual_filters(
-    filters: FilterValues = Depends(create_filters(name=str, surname=str, age=int)),
+        filters: FilterValues = Depends(create_filters(name=str, surname=str, age=int)),
 ) -> List[UserOut]:
     pass
 
 
-@app.get("/users")
+# Automatic filters from Pydantic model
+@app.get("/users/auto")
 async def get_users_auto_filters(
-    filters: FilterValues = Depends(create_filters_from_model(UserOut)),
+        filters: FilterValues = Depends(create_filters_from_model(UserOut)),
 ) -> List[UserOut]:
     pass
+
+
+# Raw Mode example
+@app.get("/users/raw")
+async def get_users_raw_filters(
+        filters: RawFilterValues = Depends(create_filters_from_model(UserOut, raw_mode=True)),
+) -> RawFilterValues:
+    return filters
 ```
 
 ---
@@ -91,9 +112,46 @@ async def get_users(
 
 ---
 
+## Raw Mode Example with pytest
+
+```python
+import pytest
+from fastapi import FastAPI, Depends
+from fastapi.testclient import TestClient
+from pydantic import BaseModel
+
+from fastapi_filters_standard import create_filters_from_model, RawFilterValues
+
+
+@pytest.mark.asyncio
+async def test_raw_mode():
+    app = FastAPI()
+
+    class UserModel(BaseModel):
+        username: str
+        age: int
+
+    @app.get("/")
+    async def route(
+            filters: RawFilterValues = Depends(create_filters_from_model(UserModel, raw_mode=True))
+    ) -> RawFilterValues:
+        return filters
+
+    client = TestClient(app)
+    res = client.get("/", params={"username__contains": "09001", "age__gte": "18"})
+
+    assert res.status_code == 200
+    assert res.json() == {"username__contains": "09001", "age__gte": "18"}
+```
+
+---
+
 ### Features of this fork
 
-* Standardized query parameter syntax (comma-separated, multi-value)
+* Standardized query parameter syntax (`field__operation`)
+* Standardized operation names
+* Comma-separated list support for multi-value filters
 * Full support for filtering and sorting
+* **Raw Mode**: receive filters exactly as sent, for forwarding to external services
 * Compatible with FastAPI and SQLAlchemy async
 * Backwards compatible with most `fastapi-filters` features
