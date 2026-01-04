@@ -11,6 +11,7 @@ from typing import (
 )
 
 from fastapi.dependencies.utils import lenient_issubclass
+from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 from typing_extensions import ParamSpec
 
@@ -107,11 +108,84 @@ def is_complex_field(field: FieldInfo) -> bool:
     return field_annotation_is_complex(field.annotation)
 
 
+# =========================
+# Nested / flatten helpers
+# =========================
+
+
+def is_pydantic_model(tp: Any) -> bool:
+    """
+    Check whether a type is a Pydantic BaseModel subclass.
+    """
+    try:
+        return issubclass(tp, BaseModel)
+    except TypeError:
+        return False
+
+
+def unwrap_optional(tp: Any) -> Any:
+    """
+    Unwrap Optional[T] -> T, otherwise return type unchanged.
+    """
+    if is_optional(tp):
+        return unwrap_optional_type(tp)
+    return tp
+
+
+def flatten_model_fields(
+    model: type[BaseModel],
+    *,
+    prefix: str = "",
+    separator: str = "__",
+    max_depth: int = 1,
+    depth: int = 0,
+) -> dict[str, Any]:
+    """
+    Flatten a Pydantic model into a mapping of
+    'field__path' -> annotation.
+
+    Nested BaseModel fields are expanded recursively
+    up to max_depth.
+
+    Example:
+        CityRead(state=StateRead) =>
+            {
+                "id": int,
+                "state__fa_name": str,
+            }
+    """
+    fields: dict[str, Any] = {}
+
+    if depth > max_depth:
+        return fields
+
+    for name, field in model.model_fields.items():
+        annotation = unwrap_optional(field.annotation)
+        full_name = f"{prefix}{separator}{name}" if prefix else name
+
+        if is_pydantic_model(annotation):
+            fields.update(
+                flatten_model_fields(
+                    annotation,
+                    prefix=full_name,
+                    separator=separator,
+                    max_depth=max_depth,
+                    depth=depth + 1,
+                )
+            )
+        else:
+            fields[full_name] = annotation
+
+    return fields
+
+
 __all__ = [
     "async_safe",
     "fields_include_exclude",
+    "flatten_model_fields",
     "is_complex_field",
     "is_optional",
+    "is_pydantic_model",
     "is_seq",
     "lenient_issubclass",
     "unwrap_annotated",
