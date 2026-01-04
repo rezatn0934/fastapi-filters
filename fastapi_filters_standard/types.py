@@ -17,6 +17,7 @@ FilterAliasGenerator: TypeAlias = Callable[
 FilterPlace: TypeAlias = Callable[..., Any]
 FilterFieldDef: TypeAlias = type[Any] | FilterField[Any]
 FilterValues: TypeAlias = dict[str, dict[AbstractFilterOperator, Any]]
+RawFilterValues: TypeAlias = dict[str, Any]
 
 
 class FiltersResolver(Protocol):
@@ -24,7 +25,7 @@ class FiltersResolver(Protocol):
     __defs__: dict[str, tuple[str, AbstractFilterOperator]]
     __filters__: dict[str, FilterField[Any]]
 
-    async def __call__(self, _: Any, /) -> FilterValues:  # pragma: no cover
+    async def __call__(self, _: Any, /) -> FilterValues | RawFilterValues:  # pragma: no cover
         pass
 
 
@@ -47,6 +48,7 @@ __all__ = [
     "FilterFieldDef",
     "FilterPlace",
     "FilterValues",
+    "RawFilterValues",
     "FiltersResolver",
     "SortingDirection",
     "SortingNulls",
