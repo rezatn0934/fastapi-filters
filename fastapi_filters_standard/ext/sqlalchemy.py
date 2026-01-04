@@ -1,12 +1,7 @@
 import operator
 from collections.abc import Callable, Container, Iterator, Mapping
 from contextlib import suppress
-from typing import (
-    Any,
-    TypeAlias,
-    TypeVar,
-    cast,
-)
+from typing import Any, TypeAlias, TypeVar, cast
 
 from sqlalchemy import (
     ARRAY,
@@ -17,7 +12,8 @@ from sqlalchemy import (
     nulls_first,
     nulls_last,
 )
-from sqlalchemy.orm import ColumnProperty
+from sqlalchemy.orm import ColumnProperty, RelationshipProperty
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.selectable import Select
 
 from fastapi_filters_standard import FilterField, create_filters
@@ -42,6 +38,43 @@ from fastapi_filters_standard.utils import fields_include_exclude
 TSelectable = TypeVar("TSelectable", bound=Select[Any])
 
 
+# --------------------------------------------
+# Helper for nested fields
+# --------------------------------------------
+def resolve_nested_column(model, field: str):
+    """
+    Resolve 'state__fa_name' into (joins, column)
+
+    Returns:
+        joins: list[InstrumentedAttribute]
+        column: InstrumentedAttribute
+    """
+    parts = field.split("__")
+    current = model
+    joins = []
+
+    for part in parts[:-1]:
+        attr = getattr(current, part, None)
+        if attr is None:
+            raise ValueError(f"Unknown relationship {part}")
+
+        prop = getattr(attr, "property", None)
+        if not isinstance(prop, RelationshipProperty):
+            raise ValueError(f"{part} is not a relationship")
+
+        joins.append(attr)
+        current = prop.mapper.class_
+
+    column = getattr(current, parts[-1], None)
+    if not isinstance(column, InstrumentedAttribute):
+        raise ValueError(f"Unknown field {field}")
+
+    return joins, column
+
+
+# --------------------------------------------
+# SQLAlchemy filter functions
+# --------------------------------------------
 def _overlap(a: Any, b: Any) -> Any:
     try:
         return a.overlap(b)
@@ -68,13 +101,12 @@ DEFAULT_FILTERS: Mapping[AbstractFilterOperator, Callable[[Any, Any], Any]] = {
     FilterOperator.contains: lambda a, b: a.contains(b),
     FilterOperator.not_contains: lambda a, b: ~a.contains(b),
 }
+
 SORT_FUNCS: Mapping[
     SortingDirection,
     Callable[[ColumnExpressionArgument[Any]], ColumnExpressionArgument[Any]],
-] = {
-    "asc": asc,
-    "desc": desc,
-}
+] = {"asc": asc, "desc": desc}
+
 SORT_NULLS_FUNCS: Mapping[
     tuple[SortingDirection, SortingNulls],
     Callable[[ColumnExpressionArgument[Any]], ColumnExpressionArgument[Any]],
@@ -89,9 +121,11 @@ EntityNamespace: TypeAlias = Mapping[str, Any]
 AdditionalNamespace: TypeAlias = Mapping[str | FilterField[Any], Any]
 
 
+# --------------------------------------------
+# Entity namespace helpers
+# --------------------------------------------
 def _get_entity_namespace(stmt: TSelectable) -> EntityNamespace:
     ns = {}
-
     for entity in reversed(stmt.get_final_froms()):
         for name, clause in reversed(entity.c.items()):
             ns[name] = clause
@@ -100,10 +134,8 @@ def _get_entity_namespace(stmt: TSelectable) -> EntityNamespace:
             with suppress(AttributeError):
                 table_name = clause.table.name
                 ns[f"{table_name}.{clause.name}"] = clause
-
                 if table_name.endswith("s"):
                     ns[f"{table_name[:-1]}.{clause.name}"] = clause
-
     return ns
 
 
@@ -112,9 +144,7 @@ def _normalize_additional_namespace(additional: AdditionalNamespace) -> EntityNa
     for key, value in additional.items():
         k = key.name if isinstance(key, FilterField) else key
         assert k, "Additional namespace key cannot be empty"
-
         ns[k] = value
-
     return ns
 
 
@@ -128,20 +158,17 @@ ApplyFilterFunc: TypeAlias = Callable[
 ]
 AddFilterConditionFunc: TypeAlias = Callable[[TSelectable, str, Any], TSelectable]
 
-custom_apply_filter: ConfigVar[ApplyFilterFunc[Any]] = ConfigVar(
-    "apply_filter",
-    default=_default_hook,
-)
-custom_add_condition: ConfigVar[AddFilterConditionFunc[Any]] = ConfigVar(
-    "add_condition",
-    default=_default_hook,
-)
+custom_apply_filter: ConfigVar[ApplyFilterFunc[Any]] = ConfigVar("apply_filter", default=_default_hook)
+custom_add_condition: ConfigVar[AddFilterConditionFunc[Any]] = ConfigVar("add_condition", default=_default_hook)
 
 
 def generic_condition(left: Any, right: Any, op: AbstractFilterOperator) -> Any:
     return DEFAULT_FILTERS[op](left, right)
 
 
+# --------------------------------------------
+# Core filter application
+# --------------------------------------------
 def _apply_filter(
     stmt: TSelectable,
     ns: EntityNamespace,
@@ -150,6 +177,7 @@ def _apply_filter(
     val: Any,
     apply_filter: ApplyFilterFunc[TSelectable] | None = None,
     add_condition: AddFilterConditionFunc[TSelectable] | None = None,
+    model: type[Any] | None = None,  # ← اضافه شد
 ) -> TSelectable:
     custom_apply_filter_impl = custom_apply_filter.get()
 
@@ -166,13 +194,22 @@ def _apply_filter(
             cond = custom_apply_filter_impl(stmt, ns, field, op, val)
             assert cond is not None
     except (NotImplementedError, AssertionError):
-        if field not in ns:
-            raise ValueError(f"Unknown field {field}") from None
+        # --------------------------------------------
+        # Handle nested fields with __
+        # --------------------------------------------
+        if "__" in field:
+            if model is None:
+                raise RuntimeError("Nested filter requires model parameter")
+            joins, column = resolve_nested_column(model, field)
+            for rel in joins:
+                stmt = stmt.join(rel)
+            left = column
+        else:
+            if field not in ns:
+                raise ValueError(f"Unknown field {field}")
+            left = ns[field]
 
-        try:
-            cond = generic_condition(ns[field], val, op)
-        except KeyError:
-            raise NotImplementedError(f"Operator {op} is not implemented") from None
+        cond = generic_condition(left, val, op)
 
     if add_condition:
         try:
@@ -193,10 +230,14 @@ def _apply_filter(
     return stmt.where(cond)  # type: ignore[arg-type]
 
 
+# --------------------------------------------
+# Public APIs
+# --------------------------------------------
 def apply_filters(
     stmt: TSelectable,
     filters: FilterValues | FilterSet,
     *,
+    model: type[Any] | None = None,  # ← اضافه شد
     remapping: Mapping[str, str] | None = None,
     additional: AdditionalNamespace | None = None,
     apply_filter: ApplyFilterFunc[TSelectable] | None = None,
@@ -204,6 +245,13 @@ def apply_filters(
 ) -> TSelectable:
     if isinstance(filters, FilterSet):
         filters = filters.filter_values
+
+    if model is None:
+        # fallback: اگر کاربر model نداد، تلاش کنیم stmt را اینسپکت کنیم
+        try:
+            model = stmt._raw_columns[0].entity
+        except AttributeError:
+            raise RuntimeError("For nested filters you must pass the ORM model via `model=`")
 
     remapping = remapping or {}
     ns = {
@@ -213,9 +261,8 @@ def apply_filters(
 
     for field, field_filters in filters.items():
         field = remapping.get(field, field)
-
         for op, val in field_filters.items():
-            stmt = _apply_filter(stmt, ns, field, op, val, apply_filter, add_condition)
+            stmt = _apply_filter(stmt, ns, field, op, val, apply_filter, add_condition, model=model)
 
     return stmt
 
@@ -364,12 +411,7 @@ def create_sorting_from_orm(
             remapping=remapping,
         )
     ]
-
-    return create_sorting(
-        *fields,
-        in_=in_,
-        default=default,
-    )
+    return create_sorting(*fields, in_=in_, default=default)
 
 
 __all__ = [
