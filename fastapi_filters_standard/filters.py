@@ -9,7 +9,7 @@ from typing import (
     get_origin,
 )
 
-from fastapi import Depends, Query, Request
+from fastapi import Depends, Query
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 
@@ -244,7 +244,8 @@ def create_filters(
         in_ = Query
 
     fields: dict[str, FilterField[Any]] = {
-        name: f_def if isinstance(f_def, FilterField) else FilterField(f_def) for name, f_def in kwargs.items()
+        name: f_def if isinstance(f_def, FilterField) else FilterField(f_def)
+        for name, f_def in kwargs.items()
     }
 
     fields_defs = [
@@ -259,44 +260,22 @@ def create_filters(
 
     defs = {fname: (name, op) for name, fname, *_, op in fields_defs}
 
-    # Build set of all aliases for raw mode
-    all_filter_keys: set[str] = set()
-    for _, fname, _, _, alias, _ in fields_defs:
-        if alias:
-            all_filter_keys.add(alias)
-        # Also include field name
-        all_filter_keys.add(fname)
+    if not raw_mode:
 
-    filter_model = make_dataclass(
-        "Filters",
-        [
-            (
-                fname,
-                Annotated[
-                    adapt_type(field, tp, op),
-                    _create_query_param(alias, adapt_type(field, tp, op), op, field, tp, in_),
-                ],
-                None,
-            )
-            for _, fname, field, tp, alias, op in fields_defs
-        ],
-    )
-
-    if raw_mode:
-
-        async def _get_filters(request: Request) -> dict[str, Any]:
-            """Return raw query parameters without conversion."""
-            # Get all query parameters that match our filter aliases
-            raw_params: dict[str, Any] = {}
-            query_params = dict(request.query_params)
-
-            # Filter query params to only include our filter parameters
-            for key, value in query_params.items():
-                if key in all_filter_keys:
-                    raw_params[key] = value
-
-            return raw_params
-    else:
+        filter_model = make_dataclass(
+            "Filters",
+            [
+                (
+                    fname,
+                    Annotated[
+                        adapt_type(field, tp, op),
+                        _create_query_param(alias, adapt_type(field, tp, op), op, field, tp, in_),
+                    ],
+                    None,
+                )
+                for _, fname, field, tp, alias, op in fields_defs
+            ],
+        )
 
         async def _get_filters(f: Any = Depends(async_safe(filter_model))) -> FilterValues:
             values: FilterValues = defaultdict(dict)
@@ -308,9 +287,76 @@ def create_filters(
 
             return {**values}
 
-    _get_filters.__model__ = filter_model  # type: ignore[attr-defined]
-    _get_filters.__defs__ = defs  # type: ignore[attr-defined]
-    _get_filters.__filters__ = fields  # type: ignore[attr-defined]
+        _get_filters.__model__ = filter_model  # type: ignore
+        _get_filters.__defs__ = defs  # type: ignore
+        _get_filters.__filters__ = fields  # type: ignore
+
+        return cast(FiltersResolver, _get_filters)
+
+    # Build mapping from fname to alias and operator
+    fname_to_alias = {}
+    fname_to_op = {}
+    for _, fname, _, _, alias, op in fields_defs:
+        fname_to_alias[fname] = alias or fname
+        fname_to_op[fname] = op
+
+    raw_fields = []
+    for _, fname, _, _, alias, op in fields_defs:
+        final_alias = alias or fname
+
+        # Determine the type based on operation
+        if op == FilterOperator.is_null:
+            field_type = bool
+        elif op in {FilterOperator.in_, FilterOperator.not_in}:
+            # For in/not_in operations, use CSVList[str] to show "add item" in Swagger
+            field_type = CSVList[str]
+            raw_fields.append((
+                fname,
+                Annotated[field_type, Query(alias=final_alias, explode=False)],
+                None,
+            ))
+            continue
+        else:
+            field_type = str
+
+        # For non-list operations
+        raw_fields.append((
+            fname,
+            Annotated[field_type, Query(alias=final_alias)],
+            None,
+        ))
+
+    raw_filter_model = make_dataclass("RawFilters", raw_fields)
+
+    async def _get_filters(
+            raw_filters: Any = Depends(async_safe(raw_filter_model)),
+    ) -> dict[str, str]:
+        """
+        Return raw query params as strings.
+        Suitable for forwarding directly to external services.
+        """
+        raw_filters_dict = asdict(raw_filters)
+
+        result = {}
+        for fname, value in raw_filters_dict.items():
+            if value is not None:
+                alias = fname_to_alias[fname]
+                op = fname_to_op[fname]
+
+                # Handle list values (for in/not_in operations)
+                if isinstance(value, list):
+                    result[alias] = ",".join(str(v) for v in value)
+                elif isinstance(value, bool):
+                    result[alias] = str(value).lower()
+                else:
+                    result[alias] = str(value)
+
+        return result
+
+    _get_filters.__model__ = raw_filter_model  # type: ignore
+    _get_filters.__defs__ = defs  # type: ignore
+    _get_filters.__filters__ = fields  # type: ignore
+    _get_filters.__raw_mode__ = True  # type: ignore
 
     return cast(FiltersResolver, _get_filters)
 
