@@ -1,6 +1,7 @@
 from collections import defaultdict
 from collections.abc import Container, Iterator
 from dataclasses import asdict, make_dataclass
+from datetime import date, time
 from typing import (
     Annotated,
     Any,
@@ -25,7 +26,13 @@ from .types import (
     FiltersResolver,
     FilterValues,
 )
-from .utils import async_safe, fields_include_exclude, flatten_model_fields, is_seq, unwrap_seq_type
+from .utils import (
+    async_safe,
+    fields_include_exclude,
+    flatten_model_fields,
+    is_seq,
+    unwrap_seq_type,
+)
 
 # Django-style lookup expressions mapping
 LOOKUP_EXPRESSIONS = {
@@ -46,6 +53,15 @@ LOOKUP_EXPRESSIONS = {
     FilterOperator.not_overlap: "__not_overlap",
     FilterOperator.contains: "__contains",
     FilterOperator.not_contains: "__not_contains",
+    FilterOperator.range: "__range",
+    FilterOperator.date: "__date",
+    FilterOperator.year: "__year",
+    FilterOperator.month: "__month",
+    FilterOperator.day: "__day",
+    FilterOperator.hour: "__hour",
+    FilterOperator.minute: "__minute",
+    FilterOperator.second: "__second",
+    FilterOperator.time: "__time",
 }
 
 
@@ -55,7 +71,7 @@ def default_alias_generator(
     alias: str | None = None,
 ) -> str:
     name = alias or name
-    lookup_expr = LOOKUP_EXPRESSIONS.get(op, f"__{op.name.rstrip('_')}")
+    lookup_expr = LOOKUP_EXPRESSIONS.get(op.value, f"__{op.name.rstrip('_')}")
 
     # If lookup_expr is empty (exact match), return just the name
     if not lookup_expr:
@@ -90,10 +106,8 @@ def _is_csv_list_type(tp: Any) -> bool:
     # Check if it's directly a list type
     if origin is list:
         return True
-    if tp is list:
-        return True
 
-    return False
+    return tp is list
 
 
 def _create_query_param(
@@ -109,7 +123,16 @@ def _create_query_param(
     # 1. in_ and not_in operations always use CSVList
     # 2. Sequence types (list, tuple, etc.) use CSVList
     # 3. If type is already CSVList
-    needs_csv = op in {FilterOperator.in_, FilterOperator.not_in} or is_seq(original_tp) or _is_csv_list_type(tp)
+    needs_csv = (
+        op
+        in {
+            FilterOperator.in_,
+            FilterOperator.not_in,
+            FilterOperator.range,
+        }
+        or is_seq(original_tp)
+        or _is_csv_list_type(tp)
+    )
 
     if needs_csv:
         if alias:
@@ -142,15 +165,31 @@ def adapt_type(
     if op == FilterOperator.is_null:
         return bool
 
-    if op in {FilterOperator.in_, FilterOperator.not_in}:
+    if op in {FilterOperator.in_, FilterOperator.not_in, FilterOperator.range}:
         return CSVList[tp]  # type: ignore[valid-type]
+
+    if op in {
+        FilterOperator.year,
+        FilterOperator.month,
+        FilterOperator.day,
+        FilterOperator.hour,
+        FilterOperator.minute,
+        FilterOperator.second,
+    }:
+        return int
+
+    if op == FilterOperator.date:
+        return date
+
+    if op == FilterOperator.time:
+        return time
 
     return tp
 
 
 def _get_field_name(name: str, op: AbstractFilterOperator) -> str:
     """Get field name for dataclass field, ensuring uniqueness."""
-    lookup_expr = LOOKUP_EXPRESSIONS.get(op, f"__{op.name.rstrip('_')}")
+    lookup_expr = LOOKUP_EXPRESSIONS.get(op.value, f"__{op.name.rstrip('_')}")
 
     # If lookup_expr is empty (exact match), use __{op.name} for uniqueness
     if not lookup_expr:
@@ -244,8 +283,7 @@ def create_filters(
         in_ = Query
 
     fields: dict[str, FilterField[Any]] = {
-        name: f_def if isinstance(f_def, FilterField) else FilterField(f_def)
-        for name, f_def in kwargs.items()
+        name: f_def if isinstance(f_def, FilterField) else FilterField(f_def) for name, f_def in kwargs.items()
     }
 
     fields_defs = [
@@ -260,8 +298,10 @@ def create_filters(
 
     defs = {fname: (name, op) for name, fname, *_, op in fields_defs}
 
+    # ------------------------------------------------------------------
+    # Typed mode
+    # ------------------------------------------------------------------
     if not raw_mode:
-
         filter_model = make_dataclass(
             "Filters",
             [
@@ -269,7 +309,14 @@ def create_filters(
                     fname,
                     Annotated[
                         adapt_type(field, tp, op),
-                        _create_query_param(alias, adapt_type(field, tp, op), op, field, tp, in_),
+                        _create_query_param(
+                            alias,
+                            adapt_type(field, tp, op),
+                            op,
+                            field,
+                            tp,
+                            in_,
+                        ),
                     ],
                     None,
                 )
@@ -277,88 +324,102 @@ def create_filters(
             ],
         )
 
-        async def _get_filters(f: Any = Depends(async_safe(filter_model))) -> FilterValues:
+        async def _get_typed_filters(
+            f: Any = Depends(async_safe(filter_model)),
+        ) -> FilterValues:
             values: FilterValues = defaultdict(dict)
 
             for key, value in asdict(f).items():
-                if value is not None:
-                    name, op = defs[key]
-                    values[name][op] = value
+                if value is None:
+                    continue
 
-            return {**values}
+                name, op = defs[key]
+                values[name][op] = value
 
-        _get_filters.__model__ = filter_model  # type: ignore
-        _get_filters.__defs__ = defs  # type: ignore
-        _get_filters.__filters__ = fields  # type: ignore
+            return dict(values)
 
-        return cast(FiltersResolver, _get_filters)
+        _get_typed_filters.__model__ = filter_model  # type: ignore[attr-defined]
+        _get_typed_filters.__defs__ = defs  # type: ignore[attr-defined]
+        _get_typed_filters.__filters__ = fields  # type: ignore[attr-defined]
 
-    # Build mapping from fname to alias and operator
-    fname_to_alias = {}
-    fname_to_op = {}
+        return cast(FiltersResolver, _get_typed_filters)
+
+    # ------------------------------------------------------------------
+    # Raw mode
+    # ------------------------------------------------------------------
+    fname_to_alias: dict[str, str] = {}
+    fname_to_op: dict[str, AbstractFilterOperator] = {}
+
     for _, fname, _, _, alias, op in fields_defs:
         fname_to_alias[fname] = alias or fname
         fname_to_op[fname] = op
 
-    raw_fields = []
+    raw_fields: list[Any] = []
+
     for _, fname, _, _, alias, op in fields_defs:
         final_alias = alias or fname
 
-        # Determine the type based on operation
-        if op == FilterOperator.is_null:
-            field_type = bool
-        elif op in {FilterOperator.in_, FilterOperator.not_in}:
-            # For in/not_in operations, use CSVList[str] to show "add item" in Swagger
-            field_type = CSVList[str]
-            raw_fields.append((
-                fname,
-                Annotated[field_type, Query(alias=final_alias, explode=False)],
-                None,
-            ))
+        if op in {
+            FilterOperator.in_,
+            FilterOperator.not_in,
+            FilterOperator.range,
+        }:
+            raw_fields.append(
+                (
+                    fname,
+                    Annotated[
+                        CSVList[str],
+                        Query(alias=final_alias, explode=False),
+                    ],
+                    None,
+                )
+            )
             continue
-        else:
-            field_type = str
 
-        # For non-list operations
-        raw_fields.append((
-            fname,
-            Annotated[field_type, Query(alias=final_alias)],
-            None,
-        ))
+        field_type: type[Any] = bool if op == FilterOperator.is_null else str
 
-    raw_filter_model = make_dataclass("RawFilters", raw_fields)
+        raw_fields.append(
+            (
+                fname,
+                Annotated[
+                    field_type,
+                    Query(alias=final_alias),
+                ],
+                None,
+            )
+        )
 
-    async def _get_filters(
-            raw_filters: Any = Depends(async_safe(raw_filter_model)),
+    raw_filter_model = make_dataclass(
+        "RawFilters",
+        raw_fields,
+    )
+
+    async def _get_raw_filters(
+        raw_filters: Any = Depends(async_safe(raw_filter_model)),
     ) -> dict[str, str]:
-        """
-        Return raw query params as strings.
-        Suitable for forwarding directly to external services.
-        """
-        raw_filters_dict = asdict(raw_filters)
+        result: dict[str, str] = {}
 
-        result = {}
-        for fname, value in raw_filters_dict.items():
-            if value is not None:
-                alias = fname_to_alias[fname]
-                op = fname_to_op[fname]
+        for fname, value in asdict(raw_filters).items():
+            if value is None:
+                continue
 
-                # Handle list values (for in/not_in operations)
-                if isinstance(value, list):
-                    result[alias] = ",".join(str(v) for v in value)
-                elif isinstance(value, bool):
-                    result[alias] = str(value).lower()
-                else:
-                    result[alias] = str(value)
+            alias = fname_to_alias[fname]
+
+            if isinstance(value, list):
+                result[alias] = ",".join(map(str, value))
+            elif isinstance(value, bool):
+                result[alias] = str(value).lower()
+            else:
+                result[alias] = str(value)
 
         return result
 
-    _get_filters.__model__ = raw_filter_model  # type: ignore
-    _get_filters.__defs__ = defs  # type: ignore
-    _get_filters.__filters__ = fields  # type: ignore
-    _get_filters.__raw_mode__ = True  # type: ignore
+    _get_raw_filters.__model__ = raw_filter_model  # type: ignore[attr-defined]
+    _get_raw_filters.__defs__ = defs  # type: ignore[attr-defined]
+    _get_raw_filters.__filters__ = fields  # type: ignore[attr-defined]
+    _get_raw_filters.__raw_mode__ = True  # type: ignore[attr-defined]
 
-    return cast(FiltersResolver, _get_filters)
+    return cast(FiltersResolver, _get_raw_filters)
 
 
 __all__ = [

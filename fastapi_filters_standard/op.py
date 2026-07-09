@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import date, time
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
@@ -257,6 +258,33 @@ class FilterOpBuilder(Generic[T_co]):  # noqa: PLW1641
         def is_null(self, value: bool = ..., /) -> FilterOp[bool]:
             pass
 
+        def range(self, value: Sequence[TArg_co], /) -> FilterOp[Sequence[TArg_co]]:
+            pass
+
+        def date(self, value: date, /) -> FilterOp[date]:
+            pass
+
+        def year(self, value: int, /) -> FilterOp[int]:
+            pass
+
+        def month(self, value: int, /) -> FilterOp[int]:
+            pass
+
+        def day(self, value: int, /) -> FilterOp[int]:
+            pass
+
+        def hour(self, value: int, /) -> FilterOp[int]:
+            pass
+
+        def minute(self, value: int, /) -> FilterOp[int]:
+            pass
+
+        def second(self, value: int, /) -> FilterOp[int]:
+            pass
+
+        def time(self, value: time, /) -> FilterOp[time]:
+            pass
+
     else:
         __eq__ = _simple_op(FilterOperator.eq)
         __ne__ = _simple_op(FilterOperator.ne)
@@ -294,6 +322,16 @@ class FilterOpBuilder(Generic[T_co]):  # noqa: PLW1641
         ) -> FilterOp[bool]:
             self._check_op(FilterOperator.is_null)
             return FilterOp(self.name, FilterOperator.is_null, val)
+
+        range = _simple_op(FilterOperator.range)
+        date = _simple_op(FilterOperator.date)
+        year = _simple_op(FilterOperator.year)
+        month = _simple_op(FilterOperator.month)
+        day = _simple_op(FilterOperator.day)
+        hour = _simple_op(FilterOperator.hour)
+        minute = _simple_op(FilterOperator.minute)
+        second = _simple_op(FilterOperator.second)
+        time = _simple_op(FilterOperator.time)
 
 
 __all__ = [

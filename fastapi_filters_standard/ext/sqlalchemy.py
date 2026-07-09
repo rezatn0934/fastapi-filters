@@ -6,11 +6,17 @@ from typing import Any, TypeAlias, TypeVar, cast
 from sqlalchemy import (
     ARRAY,
     ColumnExpressionArgument,
+    Date,
+    Time,
     asc,
     desc,
+    extract,
     inspect,
     nulls_first,
     nulls_last,
+)
+from sqlalchemy import (
+    cast as sa_cast,
 )
 from sqlalchemy.orm import ColumnProperty, RelationshipProperty
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -41,7 +47,9 @@ TSelectable = TypeVar("TSelectable", bound=Select[Any])
 # --------------------------------------------
 # Helper for nested fields
 # --------------------------------------------
-def resolve_nested_column(model: type[Any], field: str):
+def resolve_nested_column(
+    model: type[Any], field: str
+) -> tuple[list[InstrumentedAttribute[Any]], InstrumentedAttribute[Any]]:
     """
     Resolve 'state__fa_name' into (joins, column)
 
@@ -51,7 +59,7 @@ def resolve_nested_column(model: type[Any], field: str):
     """
     parts = field.split("__")
     current = model
-    joins: list[InstrumentedAttribute] = []
+    joins: list[InstrumentedAttribute[Any]] = []
 
     for part in parts[:-1]:
         attr = getattr(current, part, None)
@@ -100,6 +108,15 @@ DEFAULT_FILTERS: Mapping[AbstractFilterOperator, Callable[[Any, Any], Any]] = {
     FilterOperator.not_overlap: lambda a, b: ~_overlap(a, b),
     FilterOperator.contains: lambda a, b: a.contains(b),
     FilterOperator.not_contains: lambda a, b: ~a.contains(b),
+    FilterOperator.range: lambda a, b: a.between(b[0], b[1]),
+    FilterOperator.date: lambda a, b: sa_cast(a, Date) == b,
+    FilterOperator.year: lambda a, b: extract("year", a) == b,
+    FilterOperator.month: lambda a, b: extract("month", a) == b,
+    FilterOperator.day: lambda a, b: extract("day", a) == b,
+    FilterOperator.hour: lambda a, b: extract("hour", a) == b,
+    FilterOperator.minute: lambda a, b: extract("minute", a) == b,
+    FilterOperator.second: lambda a, b: extract("second", a) == b,
+    FilterOperator.time: lambda a, b: sa_cast(a, Time) == b,
 }
 
 SORT_FUNCS: Mapping[
@@ -155,7 +172,7 @@ def _normalize_additional_namespace(additional: AdditionalNamespace) -> EntityNa
 
 
 def _default_hook(*_: Any) -> Any:
-    raise NotImplementedError
+    raise NotImplementedError from None
 
 
 ApplyFilterFunc: TypeAlias = Callable[
@@ -180,8 +197,8 @@ custom_add_condition: ConfigVar[AddFilterConditionFunc[Any]] = ConfigVar(
 def generic_condition(left: Any, right: Any, op: AbstractFilterOperator) -> Any:
     try:
         func = DEFAULT_FILTERS[op]
-    except KeyError:
-        raise NotImplementedError(f"Operator {op} is not implemented")
+    except KeyError as err:
+        raise NotImplementedError(f"Operator {op} is not implemented") from err
 
     return func(left, right)
 
@@ -215,12 +232,10 @@ def _apply_filter(
         if cond is None:
             cond = custom_apply_filter_impl(stmt, ns, field, op, val)
             assert cond is not None
-    except (NotImplementedError, AssertionError):
+    except (NotImplementedError, AssertionError) as err:
         if nested and "__" in field:
             if model is None:
-                raise RuntimeError(
-                    "Nested filters require passing `model=` when nested=True"
-                )
+                raise RuntimeError("Nested filters require passing `model=` when nested=True") from err
 
             joins, column = resolve_nested_column(model, field)
             for rel in joins:
@@ -228,7 +243,7 @@ def _apply_filter(
             left = column
         else:
             if field not in ns:
-                raise ValueError(f"Unknown field {field}")
+                raise ValueError(f"Unknown field {field}") from err
             left = ns[field]
 
         cond = generic_condition(left, val, op)

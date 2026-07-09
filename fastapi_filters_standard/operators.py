@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Container, Iterator
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -37,6 +37,15 @@ class FilterOperator(str, Enum):
     not_overlap = "not_overlap"
     contains = "contains"
     not_contains = "not_contains"
+    range = "range"
+    date = "date"
+    year = "year"
+    month = "month"
+    day = "day"
+    hour = "hour"
+    minute = "minute"
+    second = "second"
+    time = "time"
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}.{self.name}"
@@ -75,6 +84,29 @@ SEQ_OPERATORS = [
     FilterOperator.not_contains,
 ]
 
+DATE_LOOKUP_OPERATORS = [
+    FilterOperator.range,
+    FilterOperator.year,
+    FilterOperator.month,
+    FilterOperator.day,
+]
+
+DATETIME_LOOKUP_OPERATORS = [
+    *DATE_LOOKUP_OPERATORS,
+    FilterOperator.date,
+    FilterOperator.hour,
+    FilterOperator.minute,
+    FilterOperator.second,
+    FilterOperator.time,
+]
+
+TIME_LOOKUP_OPERATORS = [
+    FilterOperator.range,
+    FilterOperator.hour,
+    FilterOperator.minute,
+    FilterOperator.second,
+]
+
 
 def default_filter_operators_generator(t: type) -> Iterator[AbstractFilterOperator]:
     t = unwrap_annotated(t)
@@ -98,7 +130,14 @@ def default_filter_operators_generator(t: type) -> Iterator[AbstractFilterOperat
     if lenient_issubclass(tp, str):
         yield from STR_OPERATORS
 
-    if lenient_issubclass(tp, (int, float, date, datetime, timedelta)):
+    if lenient_issubclass(tp, datetime):
+        yield from DATETIME_LOOKUP_OPERATORS
+    elif lenient_issubclass(tp, date):
+        yield from DATE_LOOKUP_OPERATORS
+    elif lenient_issubclass(tp, time):
+        yield from TIME_LOOKUP_OPERATORS
+
+    if lenient_issubclass(tp, (int, float, date, datetime, time, timedelta)):
         yield from NUM_OPERATORS
 
 
@@ -122,10 +161,13 @@ def get_filter_operators(t: type) -> Iterator[AbstractFilterOperator]:
 
 
 __all__ = [
+    "DATETIME_LOOKUP_OPERATORS",
+    "DATE_LOOKUP_OPERATORS",
     "DEFAULT_OPERATORS",
     "NUM_OPERATORS",
     "SEQ_OPERATORS",
     "STR_OPERATORS",
+    "TIME_LOOKUP_OPERATORS",
     "FilterOperator",
     "default_filter_operators_generator",
     "disabled_filters_config",
