@@ -57,7 +57,14 @@ from typing import List
 from fastapi import FastAPI, Depends
 from pydantic import BaseModel, Field
 
-from fastapi_filters_standard import create_filters, create_filters_from_model, FilterValues, RawFilterValues
+from fastapi_filters_standard import (
+    create_filters,
+    create_filters_from_model,
+    create_sorting_from_model,
+    FilterValues,
+    RawFilterValues,
+    SortingValues,
+)
 
 app = FastAPI()
 
@@ -71,7 +78,7 @@ class UserOut(BaseModel):
 # Manual filters
 @app.get("/users/manual")
 async def get_users_manual_filters(
-        filters: FilterValues = Depends(create_filters(name=str, surname=str, age=int)),
+    filters: FilterValues = Depends(create_filters(name=str, surname=str, age=int)),
 ) -> List[UserOut]:
     pass
 
@@ -79,7 +86,7 @@ async def get_users_manual_filters(
 # Automatic filters from Pydantic model
 @app.get("/users/auto")
 async def get_users_auto_filters(
-        filters: FilterValues = Depends(create_filters_from_model(UserOut)),
+    filters: FilterValues = Depends(create_filters_from_model(UserOut)),
 ) -> List[UserOut]:
     pass
 
@@ -87,9 +94,12 @@ async def get_users_auto_filters(
 # Raw Mode example
 @app.get("/users/raw")
 async def get_users_raw_filters(
-        filters: RawFilterValues = Depends(create_filters_from_model(UserOut, raw_mode=True)),
+    filters: RawFilterValues = Depends(
+        create_filters_from_model(UserOut, raw_mode=True)
+    ),
 ) -> RawFilterValues:
     pass
+
 ```
 
 ---
@@ -144,6 +154,73 @@ async def list_cities(
 This allows filtering cities based on fields of the related `state` object.
 
 ---
+## Nested Sorting Example
+
+class FastAPI:
+pass
+
+```python
+from fastapi import FastAPI, Depends
+from pydantic import BaseModel
+from sqlalchemy import select
+
+from db.models import City
+from fastapi_filters_standard import (
+    SortingValues,
+    create_sorting_from_model,
+)
+from fastapi_filters_standard.ext.sqlalchemy import apply_sorting
+
+app = FastAPI()
+
+
+class StateRead(BaseModel):
+    fa_name: str
+
+
+class CityRead(BaseModel):
+    id: int
+    fa_name: str
+    state: StateRead
+
+
+@app.get("/cities")
+async def list_cities(
+    sorting: SortingValues = Depends(
+        create_sorting_from_model(
+            CityRead,
+            nested=True,
+            max_depth=1,
+        )
+    ),
+):
+    """
+    Example usage:
+
+    GET /cities?sort=+state__fa_name,-fa_name
+    """
+
+    query = apply_sorting(
+        select(City),
+        sorting,
+        model=City,
+        nested=True,
+    )
+
+    result = await db.scalars(query)
+    return result.all()
+
+```
+
+This allows ordering by fields of related models using the same double-underscore syntax as nested filters.
+
+Examples:
+
+```
+GET /cities?sort=+state__fa_name
+GET /cities?sort=-state__fa_name,+fa_name
+GET /cities?sort=+country__name,-state__fa_name,+created_at
+```
 
 ## SQLAlchemy Integration
 
@@ -204,7 +281,14 @@ async def test_raw_mode():
 * Standardized operation names
 * Comma-separated list support for multi-value filters
 * Full support for filtering and sorting
-* **Nested filters**: filter on related models using double-underscore syntax
+* * **Nested filters and sorting** are supported, allowing filtering and ordering on related objects.
+
+  Examples:
+
+  ```text
+  GET /cities?state__fa_name__icontains=تهران
+  GET /cities?sort=+state__fa_name,-country__name
+  ```
 * **Raw Mode**: receive filters exactly as sent, for forwarding to external services
 * Compatible with FastAPI and SQLAlchemy async
 * Backwards compatible with most `fastapi-filters` features
