@@ -313,6 +313,8 @@ def apply_sorting(
     stmt: TSelectable,
     sorting: SortingValues,
     *,
+    model: type[Any] | None = None,
+    nested: bool = False,
     remapping: Mapping[str, str] | None = None,
     additional: AdditionalNamespace | None = None,
 ) -> TSelectable:
@@ -326,7 +328,20 @@ def apply_sorting(
         field = remapping.get(field, field)
 
         if sort_func := SORT_FUNCS.get(direction):
-            sort_expr = sort_func(ns[field])
+            if nested and "__" in field:
+                if model is None:
+                    raise RuntimeError("Nested sorting requires passing model= when nested=True")
+
+                joins, column = resolve_nested_column(model, field)
+
+                for rel in joins:
+                    stmt = stmt.join(rel)
+
+                expr = column
+            else:
+                expr = ns[field]
+
+            sort_expr = sort_func(expr)
 
             if nulls is not None:
                 sort_expr = SORT_NULLS_FUNCS[(direction, nulls)](sort_expr)
@@ -347,10 +362,14 @@ def apply_filters_and_sorting(
     additional: AdditionalNamespace | None = None,
     apply_filter: ApplyFilterFunc[TSelectable] | None = None,
     add_condition: AddFilterConditionFunc[TSelectable] | None = None,
+    model: type[Any] | None = None,
+    nested: bool = False,
 ) -> TSelectable:
     stmt = apply_filters(
         stmt,
         filters,
+        model=model,
+        nested=nested,
         remapping=remapping,
         additional=additional,
         apply_filter=apply_filter,
@@ -359,6 +378,8 @@ def apply_filters_and_sorting(
     return apply_sorting(
         stmt,
         sorting,
+        model=model,
+        nested=nested,
         remapping=remapping,
         additional=additional,
     )
@@ -371,11 +392,7 @@ def adapt_sqlalchemy_column_type(column: ColumnProperty[Any]) -> FilterFieldDef:
     expr: Any = column.expression
 
     type_: Any
-    type_ = (
-        list[expr.type.item_type.python_type]
-        if isinstance(expr.type, ARRAY)
-        else expr.type.python_type
-    )
+    type_ = list[expr.type.item_type.python_type] if isinstance(expr.type, ARRAY) else expr.type.python_type
 
     if expr.nullable:
         type_ = type_ | None
@@ -422,7 +439,7 @@ def _iter_over_orm_columns_nested(
     exclude: Container[str] | None,
     remapping: Mapping[str, str] | None,
     separator: str,
-):
+) -> Iterator[tuple[str, ColumnProperty[Any]]]:
     """
     Recursively iterate over ORM columns + relationships
     """
@@ -502,10 +519,18 @@ def create_filters_from_orm(
             )
         }
 
+    kwargs = cast(
+        dict[str, FilterFieldDef],
+        {
+            **fields,
+            **overrides,
+        },
+    )
+
     return create_filters(
         in_=in_,
         alias_generator=alias_generator,
-        **{**fields, **overrides},
+        **kwargs,
     )
 
 
@@ -518,17 +543,35 @@ def create_sorting_from_orm(
     include: Container[str] | None = None,
     exclude: Container[str] | None = None,
     remapping: Mapping[str, str] | None = None,
+    nested: bool = False,
+    nested_separator: str = "__",
+    max_depth: int = 1,
 ) -> SortingResolver:
-    fields = [
-        name
-        for name, _ in _iter_over_orm_columns(
-            obj,
-            include_fk=include_fk,
-            include=include,
-            exclude=exclude,
-            remapping=remapping,
-        )
-    ]
+    if nested:
+        fields = [
+            name
+            for name, _ in _iter_over_orm_columns_nested(
+                obj,
+                depth=0,
+                max_depth=max_depth,
+                include_fk=include_fk,
+                include=include,
+                exclude=exclude,
+                remapping=remapping,
+                separator=nested_separator,
+            )
+        ]
+    else:
+        fields = [
+            name
+            for name, _ in _iter_over_orm_columns(
+                obj,
+                include_fk=include_fk,
+                include=include,
+                exclude=exclude,
+                remapping=remapping,
+            )
+        ]
     return create_sorting(*fields, in_=in_, default=default)
 
 
