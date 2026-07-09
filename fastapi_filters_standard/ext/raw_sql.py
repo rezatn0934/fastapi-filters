@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     class _BaseCompiledStatement(NamedTuple):
         stmt: str
         args: tuple[Any, ...]
+
 else:
 
     class _BaseCompiledStatement:
@@ -163,7 +164,7 @@ def apply_filters(
                 col = column(field, type_=types.get(field))
                 stmt = stmt.where(cond(col, val))
             else:
-                raise NotImplementedError(f"Operator {op} is not implemented")
+                raise NotImplementedError(f"Operator {op} is not implemented") from None
 
     return _compile_sql(
         cast(ClauseElement, stmt.whereclause),

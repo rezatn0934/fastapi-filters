@@ -2,7 +2,7 @@ import pytest
 from fastapi import Depends, status
 from pydantic import BaseModel
 
-from fastapi_filters_standard import create_filters_from_model, RawFilterValues
+from fastapi_filters_standard import RawFilterValues, create_filters_from_model
 
 
 @pytest.mark.asyncio
@@ -13,9 +13,7 @@ async def test_raw_mode(app, client):
 
     @app.get("/")
     async def route(
-        filters: RawFilterValues = Depends(
-            create_filters_from_model(UserModel, raw_mode=True)
-        ),
+        filters: RawFilterValues = Depends(create_filters_from_model(UserModel, raw_mode=True)),
     ) -> RawFilterValues:
         return filters
 
@@ -30,4 +28,3 @@ async def test_raw_mode(app, client):
         "username__contains": "09001",
         "age__gte": "18",
     }
-

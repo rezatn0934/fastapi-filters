@@ -1,5 +1,6 @@
-from fastapi import FastAPI
 from typing import Any
+
+from fastapi import FastAPI
 
 
 def _fix_openapi_schema(openapi_schema: dict[str, Any]) -> None:
@@ -18,24 +19,24 @@ _patched = False
 def _auto_fix_docs() -> None:
     """Automatically patch FastAPI to fix explode parameter."""
     global _patched
-    
+
     if _patched:
         return
-    
+
     try:
         import fastapi
-        
+
         # Patch FastAPI.openapi method
         original_openapi = fastapi.FastAPI.openapi
-        
+
         def patched_openapi(self: FastAPI) -> dict[str, Any]:
             """Patched openapi method that fixes explode parameter."""
             schema = original_openapi(self)
             _fix_openapi_schema(schema)
             return schema
-        
+
         # Replace the method
-        fastapi.FastAPI.openapi = patched_openapi  # type: ignore[assignment]
+        fastapi.FastAPI.openapi = patched_openapi  # type: ignore[method-assign]
         _patched = True
     except (ImportError, AttributeError):
         # FastAPI not installed or already patched
@@ -44,6 +45,7 @@ def _auto_fix_docs() -> None:
 
 def fix_docs(app: FastAPI) -> None:
     """Manually fix docs for a specific app (legacy function, auto-patch is enabled by default)."""
+
     def _fix_docs() -> None:
         openapi = app.openapi()
         _fix_openapi_schema(openapi)
@@ -52,6 +54,6 @@ def fix_docs(app: FastAPI) -> None:
 
 
 __all__ = [
-    "fix_docs",
     "_auto_fix_docs",
+    "fix_docs",
 ]

@@ -37,7 +37,11 @@ async def test_sorting_with_comma_separated_values(app, client):
     res = await client.get("/", params={"sort": "+name,-age,+created_at"})
 
     assert res.status_code == status.HTTP_200_OK
-    assert res.json() == [["name", "asc", None], ["age", "desc", None], ["created_at", "asc", None]]
+    assert res.json() == [
+        ["name", "asc", None],
+        ["age", "desc", None],
+        ["created_at", "asc", None],
+    ]
 
     # Test that repeated parameters are handled correctly
     # FastAPI may receive multiple values as a list, validator should handle it
@@ -45,7 +49,11 @@ async def test_sorting_with_comma_separated_values(app, client):
 
     # The validator should join multiple values and split them
     assert res.status_code == status.HTTP_200_OK
-    assert res.json() == [["name", "asc", None], ["age", "desc", None], ["created_at", "asc", None]]
+    assert res.json() == [
+        ["name", "asc", None],
+        ["age", "desc", None],
+        ["created_at", "asc", None],
+    ]
 
 
 def test_create_sorting():

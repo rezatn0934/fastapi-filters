@@ -76,7 +76,14 @@ async def test_filters_in_operator_with_comma_separated_values(app, client):
 
     # Test that repeated parameters are handled correctly
     # FastAPI may receive multiple values as a list, validator should handle it
-    res = await client.get("/", params=[("main_industry__in", "1"), ("main_industry__in", "2"), ("main_industry__in", "3")])
+    res = await client.get(
+        "/",
+        params=[
+            ("main_industry__in", "1"),
+            ("main_industry__in", "2"),
+            ("main_industry__in", "3"),
+        ],
+    )
 
     # The validator should join multiple values and split them
     assert res.status_code == status.HTTP_200_OK

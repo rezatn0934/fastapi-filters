@@ -1,11 +1,9 @@
 import pytest
-
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import declarative_base, relationship
 
 from fastapi_filters_standard.ext.sqlalchemy import create_filters_from_orm
 from fastapi_filters_standard.operators import FilterOperator
-
 
 # -------------------------------------------------------------------
 # ORM MODELS (self-contained)

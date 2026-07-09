@@ -24,7 +24,7 @@ DEFAULT_FILTERS: Mapping[AbstractFilterOperator, Callable[..., BaseFindOperator]
     FilterOperator.not_ilike: lambda field, val: Not(RegEx(field, val, options="i")),
     FilterOperator.in_: In,
     FilterOperator.not_in: NotIn,
-    FilterOperator.is_null: lambda field, val: Eq(field, None) if val else NE(field, None),
+    FilterOperator.is_null: lambda field, val: (Eq(field, None) if val else NE(field, None)),
     FilterOperator.contains: In,
     FilterOperator.not_contains: NotIn,
     FilterOperator.overlap: In,
@@ -52,7 +52,7 @@ def apply_filters(
             if (cond := DEFAULT_FILTERS.get(op)) is not None:
                 stmt = cast(TStmt, stmt.find(cond(field, val)))
             else:
-                raise NotImplementedError(f"Operator {op} is not implemented")
+                raise NotImplementedError(f"Operator {op} is not implemented") from None
 
     return stmt
 

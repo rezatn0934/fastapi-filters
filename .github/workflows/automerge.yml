@@ -1,6 +1,6 @@
 name: Dependabot auto-merge
 
-on: 
+on:
   pull_request:
   workflow_dispatch:
 

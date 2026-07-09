@@ -46,7 +46,7 @@ def apply_filters(
             if (cond := DEFAULT_FILTERS.get(op)) is not None:
                 stmt = cast(TStmt, stmt.filter(**{f"{field}{cond}": val}))
             else:
-                raise NotImplementedError(f"Operator {op} is not implemented")
+                raise NotImplementedError(f"Operator {op} is not implemented") from None
 
     return stmt
 
@@ -64,7 +64,7 @@ def apply_sorting(
         ordering.append(f"{'-' if direction == 'desc' else ''}{field}")
 
     if ordering:
-        stmt = stmt.order_by(*ordering)  # type: ignore[assignment]
+        stmt = stmt.order_by(*ordering)
 
     return stmt
 

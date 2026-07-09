@@ -1,7 +1,6 @@
 import pytest
-
+from pydantic import BaseModel
 from sqlalchemy import (
-    Column,
     ForeignKey,
     Integer,
     String,
@@ -17,6 +16,8 @@ from sqlalchemy.orm import (
 )
 
 from fastapi_filters_standard.ext.sqlalchemy import apply_filters
+from fastapi_filters_standard.filters import create_filters_from_model
+from fastapi_filters_standard.operators import FilterOperator
 
 
 # --------------------------------------------
@@ -60,7 +61,7 @@ def engine():
     return engine
 
 
-@pytest.fixture()
+@pytest.fixture
 def session(engine):
     Session = sessionmaker(bind=engine)
     return Session()
@@ -194,13 +195,6 @@ def test_nested_filter_unknown_operator():
             model=City,
             nested=True,
         )
-
-
-import pytest
-from pydantic import BaseModel
-
-from fastapi_filters_standard.filters import create_filters_from_model
-from fastapi_filters_standard.operators import FilterOperator
 
 
 # ---------- Test Models ----------
