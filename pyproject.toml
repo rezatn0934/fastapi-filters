@@ -1,13 +1,13 @@
 [project]
 name = "fastapi-filters-standard"
-version = "0.6.0"
+version = "0.7.0"
 description = "FastAPI filters with standard query parameter syntax (comma-separated values)"
 authors = [
-    {"name" = "Reza Teymouri Nejad", "email" = "rezatn0934@gmail.com"},
+    { "name" = "Reza Teymouri Nejad", "email" = "rezatn0934@gmail.com" },
 ]
 requires-python = ">=3.10"
 readme = "README.md"
-license = {text = "MIT"}
+license = { text = "MIT" }
 repository = "https://github.com/rezatn0934/fastapi-filters"
 keywords = ["fastapi", "filters", "sorting", "query-parameters", "rest-api"]
 classifiers = [
@@ -81,42 +81,46 @@ select = [
     "ALL",
 ]
 ignore = [
-     # single rule exclude
-    "B008",    # do not perform function calls in argument defaults
-    "S101",    # use of assert detected
-    "SIM114",  # allow have multiplie ifs with same body
-    "TRY003",  # allow long exc message
-    "RUF100",  # allow unused noqa
-    "RUF012",  # allow mutable class var
-    "COM812",  # will be handled by ruff format
-    "ISC001",  # will be handled by ruff format
-    "SLF001",  # allow access to private member
-    "N806",    # allow variable name to start from uppercase letter
-    "N805",    # ignore first argument name check
-    "N818",    # ignore exception name should ends with Error suffix
+    # single rule exclude
+    "B008", # do not perform function calls in argument defaults
+    "S101", # use of assert detected
+    "SIM114", # allow have multiplie ifs with same body
+    "TRY003", # allow long exc message
+    "RUF100", # allow unused noqa
+    "RUF012", # allow mutable class var
+    "COM812", # will be handled by ruff format
+    "ISC001", # will be handled by ruff format
+    "SLF001", # allow access to private member
+    "N806", # allow variable name to start from uppercase letter
+    "N805", # ignore first argument name check
+    "N818", # ignore exception name should ends with Error suffix
     "FAST002", # allow to use non-annotated dependencies
     "PLR0913", # allow more than 5 arguments
     "PLR2004", # allow to compare with "magic numbers"
-    "UP007",   # ignore X | Y annotation suggestion
-    "TC001",   # ignore moving things to if TYPE_CHECKING block
-    "TC002",   # ignore moving things to if TYPE_CHECKING block
-    "TC003",   # ignore moving things to if TYPE_CHECKING block
-    "TC006",   # ignore add quotes to type expression in typing.cast()
-    "A005",    # allow module name to shadow a Python standard-library module
+    "UP007", # ignore X | Y annotation suggestion
+    "TC001", # ignore moving things to if TYPE_CHECKING block
+    "TC002", # ignore moving things to if TYPE_CHECKING block
+    "TC003", # ignore moving things to if TYPE_CHECKING block
+    "TC006", # ignore add quotes to type expression in typing.cast()
+    "A005", # allow module name to shadow a Python standard-library module
     "PLW2901", # ignore loop variable overwrite
-    "S602",    # ignore subprocess.popen with shell=True
-    "S307",    # ignore literal eval
-    "ERA001",  # ignore commented-out code
-
+    "S602", # ignore subprocess.popen with shell=True
+    "S307", # ignore literal eval
+    "ERA001", # ignore commented-out code
+    "C901", # function complexity
+    "PLR0911", # too many returns
+    "TRY004", # prefer TypeError
+    "PLW0603", # global statement
+    "PLC0415", # import inside function
     # full rule exclude
-    "D",    # ignore docstrings
-    "FA",  # ignore future annotations
+    "D", # ignore docstrings
+    "FA", # ignore future annotations
     "ANN", # ignore annotations
     "FIX", # ignore FIXMEs
-    "TD",  # ignore all TODOs
+    "TD", # ignore all TODOs
     "ARG", # ignore unused arguments
     "FBT", # ignore flake8-boolean-trap
-    "EM",  # ignore error message formatting
+    "EM", # ignore error message formatting
 ]
 exclude = [
     ".bzr",
@@ -140,10 +144,10 @@ exclude = [
     "venv",
     ".venv",
 ]
-per-file-ignores = {"tests/mypy/*" = ["E501"]}
+per-file-ignores = { "tests/mypy/*" = ["E501"] }
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-[tool.lint.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 10
 
 [tool.mypy]
