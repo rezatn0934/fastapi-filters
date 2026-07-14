@@ -30,6 +30,14 @@ class FilterOperator(str, Enum):
     not_like = "not_like"
     ilike = "ilike"
     not_ilike = "not_ilike"
+    starts_with = "startswith"
+    ends_with = "endswith"
+    not_starts_with = "not_startswith"
+    not_ends_with = "not_endswith"
+    istarts_with = "istartswith"
+    iends_with = "iendswith"
+    not_istarts_with = "not_istartswith"
+    not_iends_with = "not_iendswith"
     in_ = "in"
     not_in = "not_in"
     is_null = "is_null"
@@ -75,6 +83,16 @@ STR_OPERATORS = [
     FilterOperator.ilike,
     FilterOperator.not_like,
     FilterOperator.not_ilike,
+    FilterOperator.contains,
+    FilterOperator.not_contains,
+    FilterOperator.starts_with,
+    FilterOperator.not_starts_with,
+    FilterOperator.istarts_with,
+    FilterOperator.not_istarts_with,
+    FilterOperator.ends_with,
+    FilterOperator.not_ends_with,
+    FilterOperator.iends_with,
+    FilterOperator.not_iends_with,
 ]
 
 SEQ_OPERATORS = [

@@ -42,10 +42,18 @@ LOOKUP_EXPRESSIONS = {
     FilterOperator.ge: "__gte",
     FilterOperator.lt: "__lt",
     FilterOperator.le: "__lte",
-    FilterOperator.like: "__contains",  # like -> contains
+    FilterOperator.like: "__like",  # like -> contains
     FilterOperator.not_like: "__not_like",
     FilterOperator.ilike: "__icontains",  # ilike -> icontains
-    FilterOperator.not_ilike: "__not_ilike",
+    FilterOperator.not_ilike: "__not_icontains",
+    FilterOperator.starts_with: "__startswith",
+    FilterOperator.not_starts_with: "__not_startswith",
+    FilterOperator.istarts_with: "__istartswith",
+    FilterOperator.not_istarts_with: "__not_istartswith",
+    FilterOperator.ends_with: "__endswith",
+    FilterOperator.not_ends_with: "__not_endswith",
+    FilterOperator.iends_with: "__iendswith",
+    FilterOperator.not_iends_with: "__not_iendswith",
     FilterOperator.in_: "__in",
     FilterOperator.not_in: "__not_in",
     FilterOperator.is_null: "__isnull",

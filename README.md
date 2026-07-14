@@ -15,28 +15,17 @@
 
 `fastapi_filters_standard` is a **fork of [fastapi-filters](https://github.com/uriyyo/fastapi-filters)** providing filtering and sorting features for [FastAPI](https://fastapi.tiangolo.com/) applications.
 
-This fork introduces **standard query parameter syntax** for filters:
+### Additional features in this fork
 
-* Field operations are now standardized:
+Compared to the original `fastapi-filters`, this fork adds:
 
-  ```
-  field__operation
-  ```
-
-  Instead of the old syntax:
-
-  ```
-  field[operation]
-  ```
-* Operations are standardized across the package, independent of SQLAlchemy naming.
-* For filters requiring lists, values are **comma-separated in a single parameter**:
-
-  ```
-  GET /places?main_industry=1,2,3
-  ```
-* Optionally, **Raw Mode** can be used to receive filters exactly as sent in query parameters.
-* **Nested filters** are now supported, allowing filtering on related objects using syntax like `state__fa_name__icontains=تهران`.
-
+- Standard query parameter syntax using `field__operation`.
+- Nested filtering (`state__fa_name__icontains=tehran`).
+- Nested sorting (`sort=+state__fa_name,-name`).
+- Comma-separated values for multi-value filters.
+- Raw Mode for forwarding filters without parsing.
+- SQLAlchemy relationship-aware filtering and sorting.
+- Django-inspired lookup names.
 ---
 
 ## Installation
@@ -44,6 +33,45 @@ This fork introduces **standard query parameter syntax** for filters:
 ```bash
 pip install fastapi_filters_standard
 ```
+## What's Different?
+
+This fork changes several behaviors compared to the original package.
+
+### Standard query syntax
+
+Instead of:
+
+```text
+field[gte]=18
+```
+
+use:
+
+```text
+field__gte=18
+```
+
+### Nested lookups
+
+Nested relationships can be filtered using Django-style syntax.
+
+```text
+GET /cities?state__fa_name__icontains=tehran
+```
+
+### Multi-value filters
+
+List values are passed as comma-separated values.
+
+```text
+GET /users?id__in=1,2,3
+```
+
+instead of repeating the same query parameter.
+
+### Raw Mode
+
+Filters can optionally be returned exactly as received from the request without parsing.
 
 ---
 
@@ -292,3 +320,46 @@ async def test_raw_mode():
 * **Raw Mode**: receive filters exactly as sent, for forwarding to external services
 * Compatible with FastAPI and SQLAlchemy async
 * Backwards compatible with most `fastapi-filters` features
+
+## Supported Lookup Operators
+
+| Lookup            | Description | Example |
+|-------------------|-------------|---------|
+| `exact`           | Exact match (default lookup) | `?name=John` |
+| `ne`              | Not equal | `?age__ne=18` |
+| `gt`              | Greater than | `?age__gt=18` |
+| `gte`             | Greater than or equal | `?age__gte=18` |
+| `lt`              | Less than | `?age__lt=65` |
+| `lte`             | Less than or equal | `?age__lte=65` |
+| `contains`        | Contains (String, ARRAY, JSON) | `?tags__contains=python` |
+| `icontains`       | Case-insensitive contains | `?name__icontains=john` |
+| `not_contains`    | Does not contain | `?tags__not_contains=python` |
+| `not_icontains`   | Does not Case-insensitive contain | `?tags__not_contains=python` |
+| `startswith`      | Starts with | `?name__startswith=Jo` |
+| `not_startswith`  | Does not start with | `?name__not_startswith=Jo` |
+| `istartswith`     | Case-insensitive starts with | `?name__istartswith=jo` |
+| `not_istartswith` | Case-insensitive does not start with | `?name__not_istartswith=jo` |
+| `endswith`        | Ends with | `?name__endswith=son` |
+| `not_endswith`    | Does not end with | `?name__not_endswith=son` |
+| `iendswith`       | Case-insensitive ends with | `?name__iendswith=son` |
+| `not_iendswith`   | Case-insensitive does not end with | `?name__not_iendswith=son` |
+| `in`              | Value in a list | `?id__in=1,2,3` |
+| `not_in`          | Value not in a list | `?id__not_in=1,2,3` |
+| `isnull`          | Check for `NULL` | `?deleted_at__isnull=true` |
+| `overlap`         | PostgreSQL overlap | `?tags__overlap=python,django` |
+| `not_overlap`     | Negated PostgreSQL overlap | `?tags__not_overlap=python,django` |
+| `range`           | Between two values | `?age__range=18,30` |
+| `date`            | Match the date part of a datetime | `?created_at__date=2026-07-14` |
+| `year`            | Match year | `?created_at__year=2026` |
+| `month`           | Match month | `?created_at__month=7` |
+| `day`             | Match day | `?created_at__day=14` |
+| `hour`            | Match hour | `?created_at__hour=10` |
+| `minute`          | Match minute | `?created_at__minute=30` |
+| `second`          | Match second | `?created_at__second=15` |
+| `time`            | Match the time part of a datetime | `?created_at__time=10:30:00` |
+
+> **Note**
+>
+> - `icontains` is implemented internally using SQLAlchemy's `ilike()` and performs a case-insensitive substring search (`ILIKE '%value%'`).
+> - `contains` uses SQLAlchemy's native `contains()` operator, which works with strings as well as database types such as PostgreSQL `ARRAY` and `JSON`.
+> - `like` supports SQL wildcard characters such as `%` and `_`.
